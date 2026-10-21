@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0f19" />
+      <stop offset="50%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#030712" />
+    </linearGradient>
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+    <linearGradient id="candlegreen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.3" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)" stroke="#1e293b" stroke-width="4" />
+  
+  <!-- Subtle circular grid / tech rings -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="6,6" opacity="0.6"/>
+  <circle cx="256" cy="256" r="130" fill="none" stroke="#334155" stroke-width="1" opacity="0.4"/>
+
+  <!-- Candlesticks forming a dynamic rising trend -->
+  <!-- Candle 1 (Bullish green) -->
+  <line x1="130" y1="210" x2="130" y2="340" stroke="#10b981" stroke-width="4" stroke-linecap="round"/>
+  <rect x="118" y="240" width="24" height="70" rx="4" fill="url(#candlegreen)"/>
+
+  <!-- Candle 2 (Cyan pulse) -->
+  <line x1="190" y1="170" x2="190" y2="320" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
+  <rect x="178" y="200" width="24" height="85" rx="4" fill="#38bdf8"/>
+
+  <!-- Candle 3 (Indigo central pillar) -->
+  <line x1="256" y1="130" x2="256" y2="290" stroke="#6366f1" stroke-width="4" stroke-linecap="round"/>
+  <rect x="244" y="160" width="24" height="100" rx="4" fill="#6366f1"/>
+
+  <!-- Candle 4 (High peak breakout) -->
+  <line x1="322" y1="100" x2="322" y2="260" stroke="#10b981" stroke-width="4" stroke-linecap="round"/>
+  <rect x="310" y="125" width="24" height="110" rx="4" fill="url(#candlegreen)"/>
+
+  <!-- Candle 5 (Apex) -->
+  <line x1="388" y1="80" x2="388" y2="230" stroke="#06b6d4" stroke-width="4" stroke-linecap="round"/>
+  <rect x="376" y="105" width="24" height="95" rx="4" fill="#06b6d4"/>
+
+  <!-- AI Neural Surge Line -->
+  <path d="M 100 330 Q 180 270 250 200 T 410 90" fill="none" stroke="url(#brandGrad)" stroke-width="6" stroke-linecap="round"/>
+  
+  <!-- Glowing AI Node Dots -->
+  <circle cx="250" cy="200" r="7" fill="#ffffff" stroke="#6366f1" stroke-width="3" />
+  <circle cx="410" cy="90" r="8" fill="#10b981" stroke="#ffffff" stroke-width="3" />
+
+  <!-- NSE | BSE text badge -->
+  <rect x="156" y="380" width="200" height="42" rx="21" fill="#111827" stroke="#38bdf8" stroke-width="2"/>
+  <text x="256" y="408" fill="#f8fafc" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="800" text-anchor="middle" letter-spacing="3">NSE &amp; BSE AI</text>
+</svg>

@@ -1,0 +1,6 @@
+{
+  "name": "NseBse AI - Indian Equities Intelligence & PWA",
+  "description": "Comprehensive NSE & BSE analytics, rule-based and AI trade explanations, stock screener, strategy backtester, sector analysis, and portfolio risk management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,205 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    border-color: rgba(217, 107, 67, 0.22);
+  }
+
+  body {
+    font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+    background-color: #131211;
+    color: #F7EEDB;
+  }
+  
+  /* Monospace font for currency numbers, ticks, and EOD tables */
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Universal Visual Color Effects for ALL Buttons */
+  button {
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+  }
+  button:not([disabled]):hover {
+    border-color: rgba(217, 107, 67, 0.85);
+    box-shadow: 0 0 14px rgba(217, 107, 67, 0.35), 0 0 3px rgba(140, 180, 224, 0.25);
+  }
+  button:not([disabled]):active {
+    transform: scale(0.97);
+    box-shadow: 0 0 18px rgba(217, 107, 67, 0.55);
+  }
+
+  /* Universal Visual Color Effects for ALL Input/Select/Textarea boxes */
+  input, select, textarea {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: #D96B43 !important;
+    box-shadow: 0 0 16px rgba(217, 107, 67, 0.4), inset 0 0 5px rgba(217, 107, 67, 0.15) !important;
+    outline: none !important;
+  }
+
+  /* Universal Card & Box Border Visual Color Effect */
+  .box-card, [class*="rounded-2xl"], [class*="rounded-xl"] {
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+}
+
+/* Custom Canyon & Butter Cream Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #131211;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #25221F;
+  border-radius: 9999px;
+  border: 1px solid rgba(217, 107, 67, 0.3);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #332D27;
+  border-color: rgba(217, 107, 67, 0.6);
+  box-shadow: 0 0 8px rgba(217, 107, 67, 0.4);
+}
+
+/* Visual Color Effect Utilities for Boxes and Cards */
+.box-glow {
+  border: 1px solid rgba(217, 107, 67, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transition: all 0.25s ease;
+}
+.box-glow:hover {
+  border-color: rgba(217, 107, 67, 0.65) !important;
+  box-shadow: 0 0 20px rgba(217, 107, 67, 0.22), 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+.box-sky-glow {
+  border: 1px solid rgba(140, 180, 224, 0.25);
+  transition: all 0.25s ease;
+}
+.box-sky-glow:hover {
+  border-color: rgba(140, 180, 224, 0.7) !important;
+  box-shadow: 0 0 20px rgba(140, 180, 224, 0.28), 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+.box-bull-glow:hover {
+  border-color: rgba(34, 197, 94, 0.75) !important;
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.32) !important;
+}
+
+.box-bear-glow:hover {
+  border-color: rgba(239, 68, 68, 0.75) !important;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.32) !important;
+}
+
+/* Gradient visual color border cycle animation */
+@keyframes border-color-cycle {
+  0% {
+    border-color: rgba(217, 107, 67, 0.45);
+    box-shadow: 0 0 15px rgba(217, 107, 67, 0.2);
+  }
+  33% {
+    border-color: rgba(140, 180, 224, 0.55);
+    box-shadow: 0 0 18px rgba(140, 180, 224, 0.25);
+  }
+  66% {
+    border-color: rgba(247, 238, 219, 0.45);
+    box-shadow: 0 0 15px rgba(247, 238, 219, 0.2);
+  }
+  100% {
+    border-color: rgba(217, 107, 67, 0.45);
+    box-shadow: 0 0 15px rgba(217, 107, 67, 0.2);
+  }
+}
+
+.border-effect-cycle {
+  animation: border-color-cycle 6s infinite ease-in-out;
+}
+
+/* Animated Border Glow for Buttons */
+.btn-visual-effect {
+  border: 1px solid rgba(217, 107, 67, 0.35);
+  box-shadow: 0 0 8px rgba(217, 107, 67, 0.15);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-visual-effect:hover {
+  border-color: #D96B43;
+  box-shadow: 0 0 16px rgba(217, 107, 67, 0.4), inset 0 0 6px rgba(217, 107, 67, 0.15);
+}
+
+.btn-sky-effect {
+  border: 1px solid rgba(140, 180, 224, 0.35);
+  box-shadow: 0 0 8px rgba(140, 180, 224, 0.15);
+}
+.btn-sky-effect:hover {
+  border-color: #8CB4E0;
+  box-shadow: 0 0 16px rgba(140, 180, 224, 0.4), inset 0 0 6px rgba(140, 180, 224, 0.15);
+}
+
+/* Sideways Right-to-Left (RTL) Marquee Ticker Tape Animations */
+@keyframes marquee-rtl {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Fast 0.5s speed scroll (approx 13s for full tape = 0.5s per item entry) */
+.animate-marquee-rtl-05s {
+  display: flex;
+  width: max-content;
+  animation: marquee-rtl 13s linear infinite;
+  will-change: transform;
+}
+
+/* Turbo 0.5s speed scroll */
+.animate-marquee-rtl-turbo {
+  display: flex;
+  width: max-content;
+  animation: marquee-rtl 8s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee-rtl {
+  display: flex;
+  width: max-content;
+  animation: marquee-rtl 13s linear infinite;
+  will-change: transform;
+}
+
+.pause-on-hover:hover .animate-marquee-rtl,
+.pause-on-hover:hover .animate-marquee-rtl-05s,
+.pause-on-hover:hover .animate-marquee-rtl-turbo {
+  animation-play-state: paused;
+}
+
+/* Responsive PWA mobile optimizations */
+@supports (padding: max(0px)) {
+  .pb-safe {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+  .pt-safe {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+}
+
+/* Touch optimization for mobile PWA */
+@media (max-width: 768px) {
+  html, body {
+    overscroll-behavior-y: contain;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button, a {
+    touch-action: manipulation;
+  }
+}
+

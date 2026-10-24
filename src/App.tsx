@@ -47,7 +47,7 @@ export default function App() {
   const [alerts, setAlerts] = useState<MarketAlert[]>(INITIAL_ALERTS);
   const [language, setLanguage] = useState<SupportedLanguage>('en');
   const [lastLiveSync, setLastLiveSync] = useState<string | null>(null);
-  const [isLiveOfficial, setIsLiveOfficial] = useState<boolean>(true);
+  const [isLiveOfficial, setIsLiveOfficial] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Active strategy passed to backtester
@@ -81,7 +81,14 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile>(() => {
     try {
       const saved = localStorage.getItem('marktxpo_user_profile') || localStorage.getItem('nsebse_user_profile');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved) as UserProfile;
+        // API credentials are session-only; remove any legacy key saved by older builds.
+        const safeProfile = { ...parsed, customApiKey: '' };
+        localStorage.setItem('marktxpo_user_profile', JSON.stringify(safeProfile));
+        localStorage.removeItem('nsebse_user_profile');
+        return safeProfile;
+      }
     } catch {}
     return {
       name: 'Rohan Sharma',
@@ -188,7 +195,8 @@ export default function App() {
     const newProfile = { ...profile, ...updated };
     setProfile(newProfile);
     try {
-      localStorage.setItem('marktxpo_user_profile', JSON.stringify(newProfile));
+      // Do not persist a user's custom API key in readable browser storage.
+      localStorage.setItem('marktxpo_user_profile', JSON.stringify({ ...newProfile, customApiKey: '' }));
     } catch {}
   };
 

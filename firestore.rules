@@ -107,10 +107,18 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && isValidUserProfile(incoming(), userId);
+      // Role assignment is server-controlled; clients may only create regular user profiles.
+      allow create: if isOwner(userId)
+        && incoming().role == 'user'
+        && isValidUserProfile(incoming(), userId);
+      // Clients may edit profile preferences, but not privilege/reward/capital fields.
+      // Trusted Admin SDK code bypasses these rules for verified administrative operations.
       allow update: if isOwner(userId)
         && isValidUserProfile(incoming(), userId)
         && incoming().uid == existing().uid
+        && incoming().role == existing().role
+        && incoming().totalXP == existing().totalXP
+        && incoming().virtualCapital == existing().virtualCapital
         && incoming().createdAt == existing().createdAt;
       allow delete: if isOwner(userId);
 

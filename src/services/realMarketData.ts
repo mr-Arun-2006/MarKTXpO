@@ -585,11 +585,19 @@ export async function getRealIndianStockQuotes(): Promise<StockData[]> {
           const change = Math.round((validNsePrice - validPrevClose) * 100) / 100;
           const changePercent = Math.round((change / validPrevClose) * 10000) / 100;
           const spreadPercent = Math.round((((validNsePrice - validBsePrice) / validNsePrice) * 100) * 1000) / 1000;
-          const dayHigh = nseMeta?.regularMarketDayHigh ?? validNsePrice;
-          const dayLow = nseMeta?.regularMarketDayLow ?? validNsePrice;
-          const dayOpen = nseMeta?.regularMarketOpen ?? validNsePrice;
-          const high52 = nseMeta?.fiftyTwoWeekHigh ?? validNsePrice;
-          const low52 = nseMeta?.fiftyTwoWeekLow ?? validNsePrice;
+          const dayHigh = nseMeta?.regularMarketDayHigh;
+          const dayLow = nseMeta?.regularMarketDayLow;
+          const dayOpen = nseMeta?.regularMarketOpen;
+          const high52 = nseMeta?.fiftyTwoWeekHigh;
+          const low52 = nseMeta?.fiftyTwoWeekLow;
+
+          // Required day OHLC fields must be present; do not substitute the quote for them.
+          if (
+            !Number.isFinite(dayHigh) || !Number.isFinite(dayLow) || !Number.isFinite(dayOpen) ||
+            (dayHigh as number) < (dayLow as number)
+          ) {
+            return null;
+          }
           const nseVol = nseMeta?.regularMarketVolume ?? 0;
           const bseVol = bseMeta?.regularMarketVolume ?? 0;
           const totalVol = nseVol + bseVol;

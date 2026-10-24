@@ -442,7 +442,7 @@ export async function getRealBenchmarks() {
   ];
 
   try {
-    const results = await Promise.all(
+    const results = (await Promise.all(
       indexConfigs.map(async (idx) => {
         const meta = await fetchYahooQuote(idx.symbol);
         if (meta && meta.regularMarketPrice) {
@@ -457,20 +457,13 @@ export async function getRealBenchmarks() {
             change: Math.round(change * 100) / 100,
             changePercent: Math.round(pct * 100) / 100,
             isLive: true,
-            source: 'Official National & Bombay Stock Exchanges',
+            source: 'Yahoo Finance quote metadata (third-party provider)',
           };
         }
-        // Fallback default if transient network glitch
-        return {
-          name: idx.name,
-          exchange: idx.exchange,
-          value: idx.name === 'NIFTY 50' ? 23146.15 : idx.name === 'SENSEX' ? 74729.27 : 55844.0,
-          change: 104.2,
-          changePercent: 0.45,
-          isLive: false,
-        };
+        // Missing index data is unavailable, not a numeric quote to be guessed.
+        return null;
       })
-    );
+    )).filter((item): item is NonNullable<typeof item> => item !== null);
 
     benchmarksCache = {
       data: results,
@@ -512,7 +505,8 @@ function calculateTechnicalIndicators(candles: OHLCVCandle[]) {
   const variance = mean(last20.map((close) => (close - dma20) ** 2));
   const standardDeviation = Math.sqrt(variance);
 
-  const recentChanges = closes.slice(-15).slice(1).map((close, index) => close - closes.slice(-15)[index]);
+  const recentCloses = closes.slice(-15);
+  const recentChanges = recentCloses.slice(1).map((close, index) => close - recentCloses[index]);
   const averageGain = mean(recentChanges.map((change) => Math.max(change, 0)));
   const averageLoss = mean(recentChanges.map((change) => Math.max(-change, 0)));
   const rsi = averageLoss === 0 ? (averageGain === 0 ? 50 : 100) : 100 - 100 / (1 + averageGain / averageLoss);
@@ -723,7 +717,7 @@ export async function getRealStockHistory(
       const high = quotes.high?.[i];
       const low = quotes.low?.[i];
       const close = quotes.close?.[i];
-      const volume = quotes.volume?.[i] || 500000;
+      const volume = quotes.volume?.[i] ?? 0;
 
       // Skip invalid NaN entries
       if (open == null || high == null || low == null || close == null) continue;

@@ -234,98 +234,60 @@ The data provider is third-party and does not provide a verified live order book
   }
 });
 
-// 2. Custom AI Sentiment Analysis Model Endpoint
+// 2. AI Sentiment Analysis
 app.post('/api/ai/sentiment', async (req, res) => {
+  const { ticker, companyName, headlines, userApiKey, language = 'English' } = req.body || {};
+  const normalizedTicker = typeof ticker === 'string' ? ticker.slice(0, 20).toUpperCase() : 'STOCK';
+  const normalizedCompany = typeof companyName === 'string' ? companyName.slice(0, 120) : normalizedTicker;
+  const safeHeadlines = Array.isArray(headlines)
+    ? headlines.filter((item: unknown) => typeof item === 'string').slice(0, 20).map((item: string) => item.slice(0, 500))
+    : typeof headlines === 'string' ? [headlines.slice(0, 5000)] : [];
+  const safeLanguage = typeof language === 'string' ? language.slice(0, 40) : 'English';
+  const fallback = {
+    ticker: normalizedTicker,
+    sentimentScore: 0,
+    sentimentLabel: 'Neutral',
+    confidenceScore: 0,
+    newsScore: 0,
+    socialScore: 0,
+    institutionalScore: 0,
+    fundamentalScore: 0,
+    keyDrivers: [],
+    shortSummary: 'Sentiment is unavailable because verified news, social, institutional-flow, and fundamental inputs were not analyzed.',
+    dataAvailable: false,
+    dataStatus: 'UNAVAILABLE',
+  };
+
+  const ai = getGeminiClient(userApiKey);
+  if (!ai || safeHeadlines.length === 0) return res.json(fallback);
+
   try {
-    const { ticker, companyName, headlines, userApiKey, language = 'English' } = req.body;
-    const cacheKey = `sentiment_${ticker}_${language}`;
-    const cached = aiAnalysisCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      return res.json(cached.data);
-    }
-
-    const ai = getGeminiClient(userApiKey);
-    if (!ai) {
-      const fallback = {
-        ticker,
-        sentimentScore: 78,
-        sentimentLabel: 'Bullish',
-        confidenceScore: 92,
-        newsScore: 75,
-        socialScore: 68,
-        institutionalScore: 88,
-        fundamentalScore: 82,
-        keyDrivers: [
-          'Strong institutional delivery volumes across NSE & BSE',
-          'Sequential operating margin expansion in recent filings',
-          'Stable macroeconomic interest rate climate in domestic markets',
-        ],
-        shortSummary: `Institutional and fundamental indicators for ${companyName} remain firmly supportive with strong accumulation trends.`,
-      };
-      return res.json(fallback);
-    }
-
     const prompt = `
-Analyze market sentiment for Indian equity stock ${companyName} (${ticker}).
-Recent catalysts: ${Array.isArray(headlines) ? headlines.join('\n- ') : headlines || 'Quarterly earnings beat estimates; heavy FII block deals observed; sector index gained 1.4%.'}
+Analyze only the supplied headlines for Indian equity ${normalizedCompany} (${normalizedTicker}).
+Verified headlines supplied:
+${safeHeadlines.map((headline) => `- ${headline}`).join('\n')}
 
-Evaluate sentiment and respond in JSON:
-{
-  "ticker": "${ticker}",
-  "sentimentScore": number between -100 and +100,
-  "sentimentLabel": "Very Bullish" | "Bullish" | "Neutral" | "Bearish" | "Very Bearish",
-  "confidenceScore": number between 50 and 99,
-  "newsScore": number between -100 and 100,
-  "socialScore": number between -100 and 100,
-  "institutionalScore": number between -100 and 100,
-  "fundamentalScore": number between -100 and 100,
-  "keyDrivers": string array of 3 key concise bullet points,
-  "shortSummary": string concise 2-sentence summary in ${language}
-}
+Do not invent social data, institutional flows, fundamentals, or facts not present in the headlines.
+Return JSON with: sentimentScore (-100 to 100), sentimentLabel (Very Bullish/Bullish/Neutral/Bearish/Very Bearish), confidenceScore (0 to 100), newsScore (-100 to 100), socialScore (use 0 because no social data is supplied), institutionalScore (use 0 because no verified flow data is supplied), fundamentalScore (use 0 unless explicitly evidenced in the supplied headlines), keyDrivers (array), shortSummary in ${safeLanguage}.
 `;
-
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-        },
-      });
-
-      const parsed = JSON.parse(response.text || '{}');
-      aiAnalysisCache.set(cacheKey, { data: parsed, expiresAt: Date.now() + 15 * 60 * 1000 });
-      return res.json(parsed);
-    } catch (apiErr: any) {
-      console.warn(`[AI Engine] Notice in /api/ai/sentiment: ${apiErr?.message || 'Rate limit'}. Serving quantitative model sentiment.`);
-      const fallback = {
-        ticker,
-        sentimentScore: 76,
-        sentimentLabel: 'Bullish',
-        confidenceScore: 91,
-        newsScore: 74,
-        socialScore: 66,
-        institutionalScore: 86,
-        fundamentalScore: 80,
-        keyDrivers: [
-          'High delivery percentage recorded in recent sessions',
-          'Consistent order book expansion and revenue visibility',
-          'Sector rotation favoring large-cap domestic leaders',
-        ],
-        shortSummary: `Quantitative sentiment models score ${ticker} with strong confidence based on institutional block support.`,
-      };
-      return res.json(fallback);
-    }
-  } catch (err: any) {
-    console.warn('[AI Service] Non-fatal sentiment error:', err?.message);
-    return res.json({
-      ticker: req.body?.ticker || 'STOCK',
-      sentimentScore: 75,
-      sentimentLabel: 'Bullish',
-      confidenceScore: 90,
-      keyDrivers: ['Institutional accumulation', 'Healthy liquidity', 'Stable guidance'],
-      shortSummary: 'Market surveillance model registers positive risk-adjusted sentiment.',
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: { responseMimeType: 'application/json' },
     });
+    const parsed = JSON.parse(response.text || '{}');
+    return res.json({
+      ...fallback,
+      ...parsed,
+      ticker: normalizedTicker,
+      socialScore: 0,
+      institutionalScore: 0,
+      dataAvailable: true,
+      dataStatus: 'HEADLINES_ONLY',
+    });
+  } catch (err: any) {
+    console.warn('[AI Sentiment] Analysis unavailable:', err?.message);
+    return res.json(fallback);
   }
 });
 
@@ -441,121 +403,76 @@ Return a structured JSON object with this exact schema:
 
 // 4. AI Strategy & Backtesting Audit Endpoint
 app.post('/api/ai/strategy-audit', async (req, res) => {
+  const { strategyName, rules, backtestMetrics, userApiKey, language = 'English' } = req.body || {};
+  const fallback = {
+    audit: 'AI strategy audit is unavailable. No claim about profitability, statistical edge, or expected drawdown has been generated. Validate the backtest against cleaned, survivorship-bias-aware historical data and include fees, slippage, and out-of-sample testing.',
+    dataAvailable: false,
+    timestamp: new Date().toISOString(),
+  };
+  const ai = getGeminiClient(userApiKey);
+  if (!ai) return res.json(fallback);
+
   try {
-    const { strategyName, rules, backtestMetrics, userApiKey, language = 'English' } = req.body;
-    const ai = getGeminiClient(userApiKey);
-    if (!ai) {
-      return res.json({
-        audit: `### Quantitative Audit for Strategy: ${strategyName}
-- **Strategy Strengths:** Win rate of ${backtestMetrics?.winRate}% and profit factor of ${backtestMetrics?.profitFactor} demonstrate a genuine statistical edge over Nifty 50.
-- **Volatile Regime Resilience:** During macro spikes or RBI policy days, ensure slippage buffers of at least 0.15% are accounted for on dual-exchange orders.
-- **Optimization Suggestions:** Tighten stop-losses during multi-day drawdowns to keep Max Drawdown under ${backtestMetrics?.maxDrawdown || 12}%.`,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     const prompt = `
-Critique and optimize this algorithmic quantitative trading strategy tested on Indian NSE & BSE equities:
-Strategy: ${strategyName}
-Rules & Conditions: ${JSON.stringify(rules, null, 2)}
-Backtest Simulation Results:
-- Total Return: ${backtestMetrics?.totalReturn}% (vs Nifty 50: ${backtestMetrics?.benchmarkReturn}%)
-- Max Drawdown: ${backtestMetrics?.maxDrawdown}%
-- Win Rate: ${backtestMetrics?.winRate}%
-- Profit Factor: ${backtestMetrics?.profitFactor}
-- Total Trades: ${backtestMetrics?.totalTrades}
-- Sharpe Ratio: ${backtestMetrics?.sharpeRatio}
+Critically review this user-supplied backtest. Treat the numbers as unverified user input, not as proof of profitability.
+Strategy: ${String(strategyName || 'Unnamed strategy').slice(0, 120)}
+Rules: ${JSON.stringify(rules ?? []).slice(0, 12000)}
+Backtest metrics: ${JSON.stringify(backtestMetrics ?? {}).slice(0, 5000)}
+Language: ${String(language).slice(0, 40)}
 
-Please provide your audit in ${language} covering:
-1. Strategy Strengths & Edge
-2. Vulnerabilities during Volatile Indian Market Regimes
-3. 3 Specific Actionable Recommendations to improve Profit Factor and reduce Max Drawdown.
+Discuss data leakage, look-ahead bias, survivorship bias, transaction fees, slippage, sample size, and out-of-sample validation. Do not claim the strategy has an edge unless the supplied evidence supports it. Return concise Markdown.
 `;
-
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-      });
-
-      return res.json({
-        audit: response.text,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (apiErr: any) {
-      console.warn(`[AI Engine] Notice in /api/ai/strategy-audit: ${apiErr?.message}. Serving quantitative backtest critique.`);
-      return res.json({
-        audit: `### Quantitative Audit for Strategy: ${strategyName}
-- **Strategy Strengths:** Total return of ${backtestMetrics?.totalReturn}% outpaces benchmark baseline with consistent trade execution.
-- **Volatility Safeguards:** Implementing an ATR-based dynamic stop loss reduces drawdowns during event-heavy Indian trading sessions.
-- **Target Optimization:** Scale partial profits at 1.5x risk to lock in gains before mean-reversion phases.`,
-        timestamp: new Date().toISOString(),
-      });
-    }
-  } catch (err: any) {
-    console.warn('[AI Service] Non-fatal strategy-audit error:', err?.message);
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+    });
     return res.json({
-      audit: 'Strategy backtest metrics validated against historical daily candles.',
+      audit: response.text || fallback.audit,
+      dataAvailable: Boolean(response.text),
       timestamp: new Date().toISOString(),
     });
+  } catch (err: any) {
+    console.warn('[AI Strategy Audit] Analysis unavailable:', err?.message);
+    return res.json(fallback);
   }
 });
 
 // 5. AI Portfolio Risk Management Endpoint
 app.post('/api/ai/portfolio-risk', async (req, res) => {
+  const { portfolio, totalValue, userApiKey, language = 'English' } = req.body || {};
+  const fallback = {
+    riskAnalysis: 'Portfolio risk analysis is unavailable. Beta, diversification, and VaR have not been calculated. Supply verified holdings and historical return series before relying on numerical risk estimates.',
+    dataAvailable: false,
+    timestamp: new Date().toISOString(),
+  };
+  if (!Array.isArray(portfolio) || portfolio.length > 200) {
+    return res.status(400).json({ error: 'Portfolio must be an array with at most 200 holdings.' });
+  }
+
+  const ai = getGeminiClient(userApiKey);
+  if (!ai) return res.json(fallback);
+
   try {
-    const { portfolio, totalValue, userApiKey, language = 'English' } = req.body;
-    const ai = getGeminiClient(userApiKey);
-    if (!ai) {
-      return res.json({
-        riskAnalysis: `### Portfolio Risk Surveillance (Value: ₹${totalValue?.toLocaleString('en-IN')})
-1. **Beta & Market Sensitivity:** Portfolio beta sits in the optimal 0.95 - 1.08 band against NIFTY 50 and SENSEX.
-2. **Sector Concentration:** Healthy distribution across Banking, Information Technology, Energy, and Capital Goods prevents single-industry drawdown risks.
-3. **VaR 95% Commentary:** Estimated 1-day Value at Risk is well contained within 1.6% under standard volatility distributions.
-4. **Actionable Recommendations:** Maintain 8-12% tactical cash reserves to deploy into dual-exchange arbitrage opportunities during market corrections.`,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     const prompt = `
-Analyze the risk profile of this Indian stock portfolio with total equity value ₹${totalValue?.toLocaleString('en-IN')}:
-Holdings:
-${JSON.stringify(portfolio, null, 2)}
+Review the following user-supplied portfolio data. Identify missing inputs; do not invent price history, beta, VaR, correlations, sector weights, or market facts.
+Declared total value: ${Number.isFinite(totalValue) ? totalValue : 'not supplied'}
+Holdings: ${JSON.stringify(portfolio).slice(0, 20000)}
+Language: ${String(language).slice(0, 40)}
 
-Provide in ${language}:
-1. Beta & Market Sensitivity assessment against NIFTY 50 and SENSEX.
-2. Sector Concentration Risk Analysis.
-3. Value at Risk (VaR 95% 1-day estimated loss) commentary.
-4. 3 Concrete Hedging / Rebalancing actions to optimize risk-adjusted returns.
+Explain what can and cannot be assessed from the supplied data. Do not present numerical VaR/beta unless the data actually supports the calculation. Note that this is educational information, not personalized financial advice.
 `;
-
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-      });
-
-      return res.json({
-        riskAnalysis: response.text,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (apiErr: any) {
-      console.warn(`[AI Engine] Notice in /api/ai/portfolio-risk: ${apiErr?.message}. Serving quantitative risk model.`);
-      return res.json({
-        riskAnalysis: `### Portfolio Risk Surveillance (Value: ₹${totalValue?.toLocaleString('en-IN')})
-1. **Beta & Market Sensitivity:** Portfolio beta sits at 1.02 against NIFTY 50, providing balanced upside participation with controlled market beta.
-2. **Sector Concentration:** Exposure across Core Banking, Tech Exporters, and Industrial Infrastructure provides good macroeconomic diversification.
-3. **VaR 95% Commentary:** Estimated daily Value at Risk is 1.65%, within conservative institutional risk mandates.
-4. **Rebalancing Insight:** Consider systematic profit harvesting on positions that have run beyond 2.5 standard deviations above their 50-day moving average.`,
-        timestamp: new Date().toISOString(),
-      });
-    }
-  } catch (err: any) {
-    console.warn('[AI Service] Non-fatal portfolio-risk error:', err?.message);
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+    });
     return res.json({
-      riskAnalysis: 'Portfolio risk distribution aligned with institutional diversification standards.',
+      riskAnalysis: response.text || fallback.riskAnalysis,
+      dataAvailable: Boolean(response.text),
       timestamp: new Date().toISOString(),
     });
+  } catch (err: any) {
+    console.warn('[AI Portfolio Risk] Analysis unavailable:', err?.message);
+    return res.json(fallback);
   }
 });
 
@@ -671,9 +588,20 @@ Provide clear, mathematically sound, actionable insights formatted with clean Ma
       }
     }
 
-    // Institutional fallback if no key or quota exceeded
-    const lastMsg = String(messages[messages.length - 1]?.content || '').toLowerCase();
-    let fallbackReply = `### NseBse Institutional Intelligence Analysis\n\n`;
+    // Do not present fabricated market levels or unverified news as a live analysis.
+    const fallbackReply = `### AI market analysis unavailable
+
+The Gemini service is not available for this request. No current prices, technical levels, news catalysts, institutional flows, or executable arbitrage opportunities have been verified.
+
+You can still use this chat for general educational explanations. For a stock-specific analysis, refresh the quote data and provide verified historical candles and dated sources. Treat all calculations as educational, and do not use an unverified fallback as a trade signal.`;
+
+    return res.json({
+      reply: fallbackReply,
+      modelUsed: `${selectedModel} (unavailable)`,
+      timestamp: new Date().toISOString(),
+      isLiveAI: false,
+      dataAvailable: false,
+    });
 
     if (lastMsg.includes('arbitrage') || lastMsg.includes('spread')) {
       fallbackReply += `**Cross-Exchange Spread Analysis:**
@@ -701,12 +629,6 @@ Provide clear, mathematically sound, actionable insights formatted with clean Ma
 *Tip: Connect your private Gemini API key in the model bar above to unlock 'gemini-4-argon' for deep multi-turn quantitative reasoning!*`;
     }
 
-    return res.json({
-      reply: fallbackReply,
-      modelUsed: `${selectedModel} (Quant Mode)`,
-      timestamp: new Date().toISOString(),
-      isLiveAI: false,
-    });
   } catch (err: any) {
     console.error('[AI Chat Error]:', err);
     return res.status(500).json({ error: 'Failed to process AI chat query.' });

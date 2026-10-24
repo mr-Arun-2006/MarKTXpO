@@ -48,17 +48,8 @@ export const MarketNews: React.FC<MarketNewsProps> = ({
   const [selectedSentiment, setSelectedSentiment] = useState<'ALL' | 'Bullish' | 'Bearish' | 'Neutral'>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [onlySelectedStock, setOnlySelectedStock] = useState<boolean>(false);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-  const [lastRefreshed, setLastRefreshed] = useState<string>('Just now');
-
-  // Handle refresh simulation to fetch fresh headlines
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-      setLastRefreshed('Just now');
-    }, 600);
-  };
+  // This component uses a local sample dataset; there is no live news provider wired in.
+  const handleResetSamples = () => setNewsItems(INITIAL_MARKET_NEWS);
 
   // Filtered news items
   const filteredNews = useMemo(() => {
@@ -140,26 +131,26 @@ export const MarketNews: React.FC<MarketNewsProps> = ({
                 Market News &amp; Dalal Street Wire
               </h2>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#D96B43]/15 text-[#D96B43] border border-[#D96B43]/30 font-bold font-mono">
-                MAJOR INDIAN SOURCES
+                SAMPLE HEADLINES · NOT LIVE
               </span>
             </div>
             <p className="text-xs text-[#F7EEDB]/60 mt-0.5">
-              Aggregated financial headlines from Economic Times, Moneycontrol, Livemint, Business Standard, and CNBC-TV18.
+              These are sample headlines for the interface only. This panel is not connected to a verified live news feed.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 text-xs">
           <span className="text-[11px] font-mono text-[#F7EEDB]/50">
-            Updated {lastRefreshed}
+            Live news feed not connected
           </span>
           <button
-            onClick={handleRefresh}
+            onClick={handleResetSamples}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#131211] hover:bg-[#25221F] border border-[#D96B43]/20 hover:border-[#D96B43]/50 text-xs font-semibold text-[#F7EEDB] transition active:scale-95"
-            title="Refresh news wire"
+            title="Reset sample headlines; does not fetch live news"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-[#D96B43] ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
+            <RefreshCw className="w-3.5 h-3.5 text-[#D96B43]" />
+            <span>Reset Samples</span>
           </button>
         </div>
       </div>

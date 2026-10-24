@@ -254,11 +254,11 @@ export const DashboardView: React.FC<Props> = ({
                 <span className="text-[#F7EEDB] font-semibold">₹{selectedStock.previousClose}</span> / <span>₹{selectedStock.open || selectedStock.previousClose}</span>
               </div>
               <div className="bg-[#131211]/60 px-2.5 py-1.5 rounded-lg border border-[#D96B43]/15">
-                <span className="text-[#F7EEDB]/50 text-[10px] block">Upper Circuit (10%)</span>
+                <span className="text-[#F7EEDB]/50 text-[10px] block">Upper Circuit</span>
                 <span className="text-[#22C55E] font-semibold">{selectedStock.upperCircuit != null ? `₹${selectedStock.upperCircuit.toFixed(2)}` : 'N/A'}</span>
               </div>
               <div className="bg-[#131211]/60 px-2.5 py-1.5 rounded-lg border border-[#D96B43]/15">
-                <span className="text-[#F7EEDB]/50 text-[10px] block">Lower Circuit (10%)</span>
+                <span className="text-[#F7EEDB]/50 text-[10px] block">Lower Circuit</span>
                 <span className="text-[#EF4444] font-semibold">{selectedStock.lowerCircuit != null ? `₹${selectedStock.lowerCircuit.toFixed(2)}` : 'N/A'}</span>
               </div>
             </div>

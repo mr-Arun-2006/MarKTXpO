@@ -531,106 +531,79 @@ app.post('/api/ai/chat', async (req, res) => {
       customApiKey,
       systemInstruction,
       temperature = 0.7,
-    } = req.body;
+    } = req.body || {};
 
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json({ error: 'Messages array is required.' });
+    if (!Array.isArray(messages) || messages.length === 0 || messages.length > 40) {
+      return res.status(400).json({ error: 'Messages must be an array containing between 1 and 40 items.' });
     }
 
-    let selectedModel = model;
-    if (!selectedModel) {
-      selectedModel = 'gemini-3.8-flash';
+    const normalizedMessages = messages.map((message: any) => ({
+      role: message?.role === 'assistant' || message?.role === 'model' ? 'model' : 'user',
+      content: String(message?.content ?? message?.text ?? '').slice(0, 4000),
+    }));
+    const totalMessageCharacters = normalizedMessages.reduce((sum, message) => sum + message.content.length, 0);
+    if (totalMessageCharacters > 40_000) {
+      return res.status(413).json({ error: 'Chat history is too large. Shorten the conversation and retry.' });
     }
 
+    const selectedModel = typeof model === 'string' && /^[a-zA-Z0-9._-]{1,100}$/.test(model)
+      ? model
+      : 'gemini-3.8-flash';
+    const safeTemperature = typeof temperature === 'number' && Number.isFinite(temperature)
+      ? Math.min(1, Math.max(0, temperature))
+      : 0.7;
     const defaultSystemInstruction =
-      systemInstruction ||
-      `You are "NseBse Quant AI", an elite quantitative strategist, institutional market analyst, and Dalal Street investment tutor specializing in Indian equities (NSE & BSE).
-Your domain expertise covers:
-1. Candlestick patterns, RSI, MACD, and Bollinger Bands on Nifty 50, Bank Nifty, and BSE Sensex scrips.
-2. Cross-exchange cash-futures and NSE vs BSE arbitrage mechanics.
-3. Fundamental financial analysis (ROCE, P/E, debt-to-equity, cash flow, quarterly results).
-4. Sizing, stop-loss, risk-to-reward ratios, and VaR risk limits.
-Provide clear, mathematically sound, actionable insights formatted with clean Markdown headings, bullet points, and code/formulas where helpful. Always remind traders that calculations are educational and rule-based.`;
+      typeof systemInstruction === 'string' && systemInstruction.trim()
+        ? systemInstruction.slice(0, 3000)
+        : `You are an educational Indian-equity market assistant.
+Explain financial concepts clearly. Distinguish user-supplied data from verified market data.
+Do not invent current prices, news headlines, institutional flows, technical indicators, market depth, or trading costs. If evidence is missing, say so.
+Do not claim to be a SEBI-registered adviser or guarantee results. Flag when information is educational rather than personalized financial advice.`;
 
     const ai = getGeminiClient(customApiKey);
-
     if (ai) {
       try {
-        const contents = messages.map((m: any) => ({
-          role: m.role === 'assistant' || m.role === 'model' ? 'model' : 'user',
-          parts: [{ text: String(m.content || m.text || '') }],
+        const contents = normalizedMessages.map((message) => ({
+          role: message.role,
+          parts: [{ text: message.content }],
         }));
 
-        const genPromise = ai.models.generateContent({
+        const response = await ai.models.generateContent({
           model: selectedModel,
           contents,
           config: {
             systemInstruction: defaultSystemInstruction,
-            temperature: typeof temperature === 'number' ? temperature : 0.7,
+            temperature: safeTemperature,
           },
         });
-
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('AI generation timed out')), 9000)
-        );
-
-        const response: any = await Promise.race([genPromise, timeoutPromise]);
-        const reply = response?.text || 'I analyzed your query. Please provide further details or ask about another stock setup.';
-
-        return res.json({
-          reply,
-          modelUsed: selectedModel,
-          timestamp: new Date().toISOString(),
-          isLiveAI: true,
-        });
-      } catch (geminiErr: any) {
-        console.warn(`[AI Chat] Gemini call notice (${geminiErr?.message}). Serving quantitative analysis engine.`);
+        const reply = response?.text;
+        if (reply) {
+          return res.json({
+            reply,
+            modelUsed: selectedModel,
+            timestamp: new Date().toISOString(),
+            isLiveAI: true,
+            dataAvailable: true,
+          });
+        }
+      } catch (err: any) {
+        console.warn('[AI Chat] Generation unavailable:', err?.message);
       }
     }
 
-    // Do not present fabricated market levels or unverified news as a live analysis.
-    const fallbackReply = `### AI market analysis unavailable
+    return res.json({
+      reply: `### AI response unavailable
 
 The Gemini service is not available for this request. No current prices, technical levels, news catalysts, institutional flows, or executable arbitrage opportunities have been verified.
 
-You can still use this chat for general educational explanations. For a stock-specific analysis, refresh the quote data and provide verified historical candles and dated sources. Treat all calculations as educational, and do not use an unverified fallback as a trade signal.`;
-
-    return res.json({
-      reply: fallbackReply,
+You can still use the product for general educational explanations. For stock-specific analysis, refresh quote data and provide verified historical candles and dated sources. Do not use an unverified fallback as a trade signal.`,
       modelUsed: `${selectedModel} (unavailable)`,
       timestamp: new Date().toISOString(),
       isLiveAI: false,
       dataAvailable: false,
     });
-
-    if (lastMsg.includes('arbitrage') || lastMsg.includes('spread')) {
-      fallbackReply += `**Cross-Exchange Spread Analysis:**
-- NSE and BSE scrip price differentials typically oscillate between **0.02% and 0.45%** on liquid large-caps like Reliance, TCS, and HDFC Bank.
-- **Execution Rule:** Ensure gross price differential exceeds round-trip transaction costs (STT 0.1%, exchange turnover charges, GST, and SEBI turnover fees totaling ~0.14%).
-- Arbitrage windows typically mean-revert within 15 to 90 seconds under algorithmic basket matching.`;
-    } else if (lastMsg.includes('reliance') || lastMsg.includes('ril')) {
-      fallbackReply += `**Reliance Industries (NSE: RELIANCE / BSE: 500325):**
-- **Technical Structure:** Consolidating above 50-day EMA support with positive MACD divergence on daily timeframes.
-- **Catalysts:** Strong ARPU trajectory in Jio Platforms (₹195+), robust retail footprint expansion, and stabilized Singapore Gross Refining Margins (GRM).
-- **Key Levels:** Immediate resistance at ₹3,020; key institutional accumulation demand zone at ₹2,880 - ₹2,920.`;
-    } else if (lastMsg.includes('pattern') || lastMsg.includes('candlestick')) {
-      fallbackReply += `**Candlestick Pattern Execution Principles:**
-- **Bullish Engulfing:** Confirmation requires a higher volume close on Day 2 with price testing below previous day's swing low.
-- **Stop-Loss Placement:** Always set stop-loss 0.3% below the low of the engulfing candle.
-- **Risk-Reward:** Minimum viable setup requires 1:2 Risk-to-Reward ratio targeting the next key liquidity pivot.`;
-    } else {
-      fallbackReply += `**Market Strategy Synthesis:**
-1. **NIFTY 50 Benchmark Momentum:** Institutional flow tracking shows sustained domestic institutional investor (DII) SIP inflows offsetting selective FII profit-booking.
-2. **Key Quantitative Guardrails:**
-   - Always honor 2% maximum account equity risk per trade.
-   - Cross-check technical setups with volume-weighted average price (VWAP) and delivery volume percentages.
-   - For swing strategies, monitor 20-day and 50-day Exponential Moving Averages (EMA).
-   
-*Tip: Connect your private Gemini API key in the model bar above to unlock 'gemini-4-argon' for deep multi-turn quantitative reasoning!*`;
-    }
-
   } catch (err: any) {
-    console.error('[AI Chat Error]:', err);
+    console.error('[AI Chat Error]:', err?.message);
     return res.status(500).json({ error: 'Failed to process AI chat query.' });
   }
 });

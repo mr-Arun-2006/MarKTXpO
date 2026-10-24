@@ -286,7 +286,7 @@ export const DashboardView: React.FC<Props> = ({
             <div className="p-3.5 rounded-xl bg-[#1A1816] border border-[#D96B43]/30 hover:border-[#D96B43] hover:shadow-[0_0_14px_rgba(217,107,67,0.25)] transition-all text-xs">
               <span className="text-[#F7EEDB]/60">52W Range</span>
               <div className="text-xs font-bold text-[#F7EEDB] font-mono mt-1">
-                ₹{selectedStock.low52} - ₹{selectedStock.high52}
+                {selectedStock.low52 != null && selectedStock.high52 != null ? `₹${selectedStock.low52} - ₹${selectedStock.high52}` : 'N/A'}
               </div>
               <span className="text-[10px] text-[#F7EEDB]/50">P/E: {selectedStock.pe} · Beta: {selectedStock.beta}</span>
             </div>

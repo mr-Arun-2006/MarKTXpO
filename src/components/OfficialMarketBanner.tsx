@@ -1,12 +1,8 @@
 import React, { useState } from 'react';
 import {
-  ShieldCheck,
   RefreshCw,
-  CheckCircle2,
-  ExternalLink,
   Info,
   Clock,
-  Sparkles,
   ChevronDown,
 } from 'lucide-react';
 
@@ -41,17 +37,17 @@ export const OfficialMarketBanner: React.FC<Props> = ({
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2.5">
         {/* Left: Verification status */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#22C55E]/15 border border-[#22C55E]/40 text-[#22C55E] font-mono font-bold text-[11px] shadow-[0_0_10px_rgba(34,197,94,0.25)]">
-            <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
-            <span>REAL INDIAN MARKET DATA</span>
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border font-mono font-bold text-[11px] ${isLiveOfficial ? 'bg-[#22C55E]/15 border-[#22C55E]/40 text-[#22C55E]' : 'bg-[#D96B43]/15 border-[#D96B43]/40 text-[#D96B43]'}`}>
+            <span className={`w-2 h-2 rounded-full ${isLiveOfficial ? 'bg-[#22C55E]' : 'bg-[#D96B43]'}`} />
+            <span>{isLiveOfficial ? 'VERIFIED OFFICIAL DATA' : 'THIRD-PARTY MARKET DATA'}</span>
           </div>
 
           <div className="flex items-center gap-1.5 text-[11px] text-[#F7EEDB]/80">
-            <span className="font-semibold text-[#8CB4E0]">NSE &amp; BSE Official Feeds</span>
+            <span className="font-semibold text-[#8CB4E0]">{isLiveOfficial ? 'Official source verified' : 'Yahoo Finance quote/history data'}</span>
             <span className="text-[#F7EEDB]/40">•</span>
-            <span className="hidden sm:inline text-[#F7EEDB]/60">via Yahoo Finance &amp; Google Finance</span>
+            <span className="hidden sm:inline text-[#F7EEDB]/60">some supplementary fields are unavailable or estimates</span>
             <span className="text-[#F7EEDB]/40">•</span>
-            <span className="font-mono text-[#D96B43]">{stockCount} Traded Equities</span>
+            <span className="font-mono text-[#D96B43]">{stockCount} Available Equities</span>
           </div>
         </div>
 
@@ -86,33 +82,24 @@ export const OfficialMarketBanner: React.FC<Props> = ({
       {/* Expandable Official Data Verification Drawer */}
       {showDetails && (
         <div className="max-w-7xl mx-auto mt-2.5 pt-2.5 border-t border-[#D96B43]/20 grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] animate-fadeIn">
-          <div className="p-2.5 rounded-lg bg-[#131211]/80 border border-[#22C55E]/30 space-y-1">
-            <div className="flex items-center gap-1.5 font-bold text-[#22C55E]">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>National Stock Exchange (NSE)</span>
-            </div>
-            <p className="text-[#F7EEDB]/70">
-              Live quote feed linked to official `.NS` exchange tickers with real-time traded prices, daily volume, 52-week extremes, and circuit breakers.
-            </p>
-          </div>
-
           <div className="p-2.5 rounded-lg bg-[#131211]/80 border border-[#8CB4E0]/30 space-y-1">
-            <div className="flex items-center gap-1.5 font-bold text-[#8CB4E0]">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Bombay Stock Exchange (BSE)</span>
-            </div>
+            <div className="font-bold text-[#8CB4E0]">Quote and history source</div>
             <p className="text-[#F7EEDB]/70">
-              Authentic 6-digit scrip codes (e.g. 500325, 532540) matching official BSE Bhavcopy with live inter-exchange arbitrage surveillance.
+              Price quotes and historical candles are retrieved from Yahoo Finance. This is a third-party data source, not a direct NSE or BSE exchange feed, and data may be delayed or unavailable.
             </p>
           </div>
 
           <div className="p-2.5 rounded-lg bg-[#131211]/80 border border-[#D96B43]/30 space-y-1">
-            <div className="flex items-center gap-1.5 font-bold text-[#D96B43]">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Yahoo &amp; Google Finance Pipelines</span>
-            </div>
+            <div className="font-bold text-[#D96B43]">Technical indicators</div>
             <p className="text-[#F7EEDB]/70">
-              Direct institutional API aggregation with high-frequency caching and official historical daily candlestick streams.
+              RSI, moving averages, MACD, and Bollinger Bands are calculated from observed historical closing prices. Equities without sufficient history are excluded from this feed.
+            </p>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-[#131211]/80 border border-[#F7EEDB]/20 space-y-1">
+            <div className="font-bold text-[#F7EEDB]">Data limitations</div>
+            <p className="text-[#F7EEDB]/70">
+              Some company fundamentals remain registry reference values. Delivery statistics, institutional flows, verified news sentiment, and exchange circuit limits are not validated from a live official source.
             </p>
           </div>
         </div>

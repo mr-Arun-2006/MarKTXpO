@@ -631,11 +631,6 @@ export async function getRealIndianStockQuotes(): Promise<StockData[]> {
               middle: indicators.dma20,
               lower: indicators.bollingerLower,
             },
-            // These fields are retained for UI compatibility until their own verified feeds are integrated.
-            // Zero means unavailable; it must not be interpreted as an observed delivery percentage.
-            deliveryPercent: 0,
-            upperCircuit: Math.round(validPrevClose * 1.1 * 100) / 100,
-            lowerCircuit: Math.round(validPrevClose * 0.9 * 100) / 100,
             arbitrageDirection,
             potentialArbitrageProfitPer1000Shares: Math.round(Math.abs(validNsePrice - validBsePrice) * 1000),
             sentiment: {

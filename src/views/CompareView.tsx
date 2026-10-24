@@ -107,7 +107,7 @@ export const CompareView: React.FC<Props> = ({
                 <div className="text-sm font-bold text-[#F7EEDB] font-mono mt-0.5">
                   {(selectedStock.nseVolume / 100000).toFixed(2)} L Shares
                 </div>
-                <span className="text-[10px] text-[#D96B43]">78% of Total Market</span>
+                <span className="text-[10px] text-[#D96B43]">Provider-reported volume</span>
               </div>
 
               <div className="p-3 rounded-xl bg-[#131211] border border-[#D96B43]/15">
@@ -115,18 +115,18 @@ export const CompareView: React.FC<Props> = ({
                 <div className="text-sm font-bold text-[#F7EEDB] font-mono mt-0.5">
                   {selectedStock.deliveryPercent != null ? `${selectedStock.deliveryPercent}%` : 'N/A'}
                 </div>
-                <span className="text-[10px] text-[#F7EEDB]/60">Institutional Holding</span>
+                <span className="text-[10px] text-[#F7EEDB]/60">Delivery data</span>
               </div>
 
               <div className="p-3 rounded-xl bg-[#131211] border border-[#D96B43]/15">
-                <span className="text-[#F7EEDB]/50">Upper Circuit (+10%)</span>
+                <span className="text-[#F7EEDB]/50">Upper Circuit</span>
                 <div className="text-sm font-bold text-[#F7EEDB] font-mono mt-0.5">
                   {selectedStock.upperCircuit != null ? `₹${selectedStock.upperCircuit.toFixed(2)}` : 'N/A'}
                 </div>
               </div>
 
               <div className="p-3 rounded-xl bg-[#131211] border border-[#D96B43]/15">
-                <span className="text-[#F7EEDB]/50">Lower Circuit (-10%)</span>
+                <span className="text-[#F7EEDB]/50">Lower Circuit</span>
                 <div className="text-sm font-bold text-[#EF4444] font-mono mt-0.5">
                   {selectedStock.lowerCircuit != null ? `₹${selectedStock.lowerCircuit.toFixed(2)}` : 'N/A'}
                 </div>
@@ -164,7 +164,7 @@ export const CompareView: React.FC<Props> = ({
                 <div className="text-sm font-bold text-[#F7EEDB] font-mono mt-0.5">
                   {(selectedStock.bseVolume / 100000).toFixed(2)} L Shares
                 </div>
-                <span className="text-[10px] text-[#D96B43]">22% of Total Market</span>
+                <span className="text-[10px] text-[#D96B43]">Provider-reported volume</span>
               </div>
 
               <div className="p-3 rounded-xl bg-[#131211] border border-[#D96B43]/15">
@@ -172,7 +172,7 @@ export const CompareView: React.FC<Props> = ({
                 <div className="text-sm font-bold text-[#F7EEDB] font-mono mt-0.5">
                   {selectedStock.deliveryPercent != null ? `${selectedStock.deliveryPercent.toFixed(1)}%` : 'N/A'}
                 </div>
-                <span className="text-[10px] text-[#F7EEDB]/60">Retail &amp; HNI Heavy</span>
+                <span className="text-[10px] text-[#F7EEDB]/60">Delivery data</span>
               </div>
 
               <div className="p-3 rounded-xl bg-[#131211] border border-[#D96B43]/15">

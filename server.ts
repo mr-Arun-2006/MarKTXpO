@@ -1224,37 +1224,43 @@ app.get('/api/sql/portfolio', requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
-// Background cache warmer on startup
-setTimeout(async () => {
-  try {
-    await Promise.allSettled([getRealBenchmarks(), getRealIndianStockQuotes()]);
-  } catch {}
-}, 1000);
+// Avoid background network work during serverless cold starts.
+if (process.env.VERCEL !== '1') {
+  setTimeout(async () => {
+    try {
+      await Promise.allSettled([getRealBenchmarks(), getRealIndianStockQuotes()]);
+    } catch {}
+  }, 1000);
+}
 
-const httpServer = http.createServer(app);
-
-// Mount Vite in dev mode or serve static files in production
 const distPath = path.join(__dirname, 'dist');
 const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
 
-if (process.env.NODE_ENV === 'production' || hasDist) {
-  app.use(express.static(distPath));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
+// Export the Express app for Vercel's catch-all function. Traditional Node
+// deployments keep the existing static/Vite setup and listen on PORT.
+if (process.env.VERCEL !== '1') {
+  if (process.env.NODE_ENV === 'production' || hasDist) {
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  } else {
+    const { createServer: createViteServer } = await import('vite');
+    const vite = await createViteServer({
+      server: {
+        middlewareMode: true,
+        hmr: false,
+        watch: null,
+      },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+  }
+
+  const httpServer = http.createServer(app);
+  httpServer.listen(port, '0.0.0.0', () => {
+    console.log(`MarKtXPO Server running on http://0.0.0.0:${port}`);
   });
-} else {
-  const { createServer: createViteServer } = await import('vite');
-  const vite = await createViteServer({
-    server: {
-      middlewareMode: true,
-      hmr: false,
-      watch: null,
-    },
-    appType: 'spa',
-  });
-  app.use(vite.middlewares);
 }
 
-httpServer.listen(port, '0.0.0.0', () => {
-  console.log(`MarKtXPO Server running on http://0.0.0.0:${port}`);
-});
+export default app;

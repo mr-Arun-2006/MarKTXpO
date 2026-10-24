@@ -427,7 +427,7 @@ async function fetchYahooQuote(symbol: string) {
   }
 }
 
-// Fetch real benchmark indices from official market
+// Fetch benchmark index quotes from the third-party provider
 export async function getRealBenchmarks() {
   if (benchmarksCache && Date.now() - benchmarksCache.timestamp < CACHE_TTL_MS) {
     return benchmarksCache.data;

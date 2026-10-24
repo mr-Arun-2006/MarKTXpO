@@ -405,6 +405,15 @@ const historyCache = new Map<string, LiveQuoteCache>();
 
 const CACHE_TTL_MS = 20 * 1000; // 20 seconds
 const HISTORY_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const MAX_HISTORY_CACHE_ENTRIES = 1_000;
+
+function setHistoryCache(key: string, data: OHLCVCandle[]): void {
+  if (historyCache.size >= MAX_HISTORY_CACHE_ENTRIES && !historyCache.has(key)) {
+    const oldestKey = historyCache.keys().next().value;
+    if (oldestKey !== undefined) historyCache.delete(oldestKey);
+  }
+  historyCache.set(key, { data, timestamp: Date.now() });
+}
 
 // Fetch real single quote from Yahoo Finance API
 async function fetchYahooQuote(symbol: string) {
@@ -417,6 +426,7 @@ async function fetchYahooQuote(symbol: string) {
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           Accept: 'application/json',
         },
+        signal: AbortSignal.timeout(8_000),
       }
     );
     if (!res.ok) return null;
@@ -471,7 +481,7 @@ export async function getRealBenchmarks() {
     };
     return results;
   } catch (e) {
-    return benchmarksCache?.data || [];
+    return [];
   }
 }
 
@@ -666,7 +676,7 @@ export async function getRealIndianStockQuotes(): Promise<StockData[]> {
     return quotesList;
   }
 
-  return stocksCache?.data || [];
+  return [];
 }
 
 // Fetch real historical daily candles from Yahoo Finance
@@ -729,13 +739,10 @@ export async function getRealStockHistory(
       });
     }
 
-    historyCache.set(cacheKey, {
-      data: candles,
-      timestamp: Date.now(),
-    });
+    setHistoryCache(cacheKey, candles);
 
     return candles;
   } catch (err) {
-    return cached?.data || [];
+    return [];
   }
 }

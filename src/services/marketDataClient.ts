@@ -75,7 +75,7 @@ export async function fetchRealStockHistory(
   interval = '1d'
 ): Promise<OHLCVCandle[]> {
   try {
-    const res = await fetch(`/api/market/history/${encodeURIComponent(ticker)}?range=${range}&interval=${interval}`);
+    const res = await fetch(`/api/market/history?ticker=${encodeURIComponent(ticker)}&range=${encodeURIComponent(range)}&interval=${encodeURIComponent(interval)}`);
     if (!res.ok) return [];
     const data: RealHistoryResponse = await res.json();
     return data.candles || [];

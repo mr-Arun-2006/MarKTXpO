@@ -118,7 +118,8 @@ service cloud.firestore {
         && incoming().uid == existing().uid
         && incoming().role == existing().role
         && incoming().totalXP == existing().totalXP
-        && incoming().virtualCapital == existing().virtualCapital
+        && (('virtualCapital' in incoming()) == ('virtualCapital' in existing()))
+        && (!('virtualCapital' in existing()) || incoming().virtualCapital == existing().virtualCapital)
         && incoming().createdAt == existing().createdAt;
       allow delete: if isOwner(userId);
 

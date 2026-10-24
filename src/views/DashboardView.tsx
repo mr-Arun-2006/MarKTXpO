@@ -255,11 +255,11 @@ export const DashboardView: React.FC<Props> = ({
               </div>
               <div className="bg-[#131211]/60 px-2.5 py-1.5 rounded-lg border border-[#D96B43]/15">
                 <span className="text-[#F7EEDB]/50 text-[10px] block">Upper Circuit (10%)</span>
-                <span className="text-[#22C55E] font-semibold">₹{selectedStock.upperCircuit}</span>
+                <span className="text-[#22C55E] font-semibold">{selectedStock.upperCircuit != null ? `₹${selectedStock.upperCircuit.toFixed(2)}` : 'N/A'}</span>
               </div>
               <div className="bg-[#131211]/60 px-2.5 py-1.5 rounded-lg border border-[#D96B43]/15">
                 <span className="text-[#F7EEDB]/50 text-[10px] block">Lower Circuit (10%)</span>
-                <span className="text-[#EF4444] font-semibold">₹{selectedStock.lowerCircuit}</span>
+                <span className="text-[#EF4444] font-semibold">{selectedStock.lowerCircuit != null ? `₹${selectedStock.lowerCircuit.toFixed(2)}` : 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -294,7 +294,7 @@ export const DashboardView: React.FC<Props> = ({
             <div className="p-3.5 rounded-xl bg-[#1A1816] border border-[#22C55E]/30 hover:border-[#22C55E] hover:shadow-[0_0_14px_rgba(34,197,94,0.25)] transition-all text-xs">
               <span className="text-[#F7EEDB]/60">Delivery &amp; RSI</span>
               <div className="text-xs font-bold text-[#22C55E] font-mono mt-1">
-                {selectedStock.deliveryPercent}% Delivery
+                {selectedStock.deliveryPercent != null ? `${selectedStock.deliveryPercent}% Delivery` : 'Delivery data unavailable'}
               </div>
               <span className="text-[10px] text-[#8CB4E0] font-mono">RSI(14): {selectedStock.rsi}</span>
             </div>

@@ -1100,7 +1100,7 @@ Provide clear, mathematically sound, actionable insights formatted with clean Ma
   }
 });
 
-// 6. Real Indian Market Data Endpoints (Official NSE & BSE Feeds via Yahoo/Google Finance)
+// 6. Third-party Indian market data endpoints (Yahoo Finance quote/history metadata)
 app.get('/api/market/stocks', async (req, res) => {
   try {
     const quotes = await getRealIndianStockQuotes();

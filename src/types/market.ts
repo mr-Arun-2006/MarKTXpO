@@ -32,8 +32,8 @@ export interface StockData {
   pe: number;
   pb: number;
   dividendYield: number;
-  high52: number;
-  low52: number;
+  high52?: number;
+  low52?: number;
   beta: number;
   rsi: number;
   macd: {

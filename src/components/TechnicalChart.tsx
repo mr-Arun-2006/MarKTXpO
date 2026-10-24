@@ -106,14 +106,13 @@ export const TechnicalChart: React.FC<Props> = ({
 
   // Only plot BSE history when the provider actually supplied BSE closes.
   const bseOverlayPath = useMemo(() => {
-    const points = candles
-      .map((c, i) => {
-        if (c.bseClose == null || !Number.isFinite(c.bseClose)) return null;
-        const x = 30 + i * stepX;
-        const y = getY(c.bseClose);
-        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
-      })
-      .filter((point): point is string => point !== null);
+    const points: string[] = [];
+    candles.forEach((c, i) => {
+      if (c.bseClose == null || !Number.isFinite(c.bseClose)) return;
+      const x = 30 + i * stepX;
+      const y = getY(c.bseClose);
+      points.push(`${points.length === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`);
+    });
     return points.join(' ');
   }, [candles, minPrice, maxPrice]);
 

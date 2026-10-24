@@ -132,7 +132,7 @@ app.post('/api/ai/explain', async (req, res) => {
       userApiKey,
     } = req.body;
 
-    const cacheKey = `explain_${ticker}_${language}`;
+    const cacheKey = `explain_${ticker}_${language}_${price}_${changePercent}_${rsi}_${dma50}_${dma200}_${arbitragePercent}`;
     const cached = aiAnalysisCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
       return res.json(cached.data);
@@ -141,21 +141,19 @@ app.post('/api/ai/explain', async (req, res) => {
     const ai = getGeminiClient(userApiKey);
     if (!ai) {
       // Deterministic institutional explanation when API key not present
-      const fallbackAnalysis = `### Executive Summary for ${companyName} (${ticker})
-${ticker} is currently trading at ₹${price} (${changePercent > 0 ? '+' : ''}${changePercent}%) on the ${sector} sector board. The scrip demonstrates solid structural resilience, supported by healthy institutional delivery volume across both NSE (₹${nsePrice || price}) and BSE (₹${bsePrice || price}).
+      const fallbackAnalysis = `### AI analysis unavailable
 
-### Rule-Based Quantitative Verification
-1. **RSI(14) at ${rsi}:** Reflects a balanced momentum corridor without severe overbought exhaustion.
-2. **50 DMA (₹${dma50}) vs 200 DMA (₹${dma200}):** Bullish medium-to-long term golden alignment. Price is trading comfortably above long-term accumulation bands.
-3. **Volume Profile:** ${volumeMultiplier || 1.8}x normal daily average turnover, indicating authentic institutional participation rather than retail churn.
-4. **NSE vs BSE Arbitrage:** Current inter-exchange spread is ${arbitragePercent || '0.04'}%, offering minimal execution slippage for large block deliveries.
+A configured Gemini model is unavailable or the request failed. This fallback does not generate trade recommendations, price targets, stop-loss levels, sentiment scores, or execution-liquidity claims.
 
-### Institutional Trade Recommendation
-- **Primary Bias:** Accumulate on dips
-- **Target Price 1:** ₹${Math.round(price * 1.05 * 10) / 10}
-- **Target Price 2:** ₹${Math.round(price * 1.11 * 10) / 10}
-- **Strict Stop-Loss:** ₹${Math.round(price * 0.96 * 10) / 10}
-- **Risk-to-Reward:** 1:2.4`;
+Available quote inputs for reference:
+- Ticker: ${ticker || 'N/A'} | Company: ${companyName || 'N/A'}
+- Price: ₹${Number.isFinite(price) ? price : 'N/A'} | Change: ${Number.isFinite(changePercent) ? `${changePercent}%` : 'N/A'}
+- RSI(14): ${Number.isFinite(rsi) ? rsi : 'N/A'}
+- 50-day average: ₹${Number.isFinite(dma50) ? dma50 : 'N/A'} | 200-day average: ₹${Number.isFinite(dma200) ? dma200 : 'N/A'}
+- P/E reference: ${Number.isFinite(pe) ? pe : 'N/A'}
+- Cross-provider quote spread: ${Number.isFinite(arbitragePercent) ? `${arbitragePercent}%` : 'N/A'}
+
+The data provider is third-party and does not provide a verified live order book. Verify source timestamps and transaction costs before making investment decisions.`;
 
       return res.json({
         ticker,
@@ -169,12 +167,12 @@ Analyze the following Indian equity stock traded on the National Stock Exchange 
 - Company: ${companyName} (${ticker})
 - Sector: ${sector}
 - Current Market Price: ₹${price} (${changePercent > 0 ? '+' : ''}${changePercent}%)
-- NSE Price: ₹${nsePrice || price} | BSE Price: ₹${bsePrice || price} (Arbitrage Spread: ${arbitragePercent || '0.04'}%)
+- NSE Price: ₹${nsePrice || price} | BSE Price: ₹${bsePrice || price} (Arbitrage Spread: ${arbitragePercent ?? 'Unavailable'}%)
 - Technical Indicators:
   * RSI (14): ${rsi}
-  * MACD: ${macd?.signal || 'Bullish crossover with positive histogram expansion'}
+  * MACD: ${macd?.signal || 'Unavailable'}
   * 50 DMA: ₹${dma50} | 200 DMA: ₹${dma200}
-  * Volume: ${volumeMultiplier || 1.8}x 20-day average volume
+  * Volume: ${volumeMultiplier ?? 'Unavailable'}x 20-day average volume
   * Valuation P/E: ${pe}
 
 Language requirement: Please explain the entire analysis in ${language}.
@@ -206,21 +204,19 @@ Provide a structured, institutional analysis with:
       return res.json(result);
     } catch (apiErr: any) {
       console.warn(`[AI Engine] Notice in /api/ai/explain: ${apiErr?.message || 'Rate limit/quota limit'}. Serving structured quantitative intelligence.`);
-      const fallbackAnalysis = `### Executive Summary for ${companyName} (${ticker})
-${ticker} is currently trading at ₹${price} (${changePercent > 0 ? '+' : ''}${changePercent}%) in the ${sector} sector. The scrip demonstrates solid structural resilience, supported by institutional delivery volume across both NSE (₹${nsePrice || price}) and BSE (₹${bsePrice || price}).
+      const fallbackAnalysis = `### AI analysis unavailable
 
-### Rule-Based Quantitative Verification
-1. **RSI(14) at ${rsi}:** Indicates a constructive momentum setup without overbought exhaustion.
-2. **50 DMA (₹${dma50}) vs 200 DMA (₹${dma200}):** Constructive golden alignment above moving average bases.
-3. **Volume Profile:** ${volumeMultiplier || 1.8}x normal daily average turnover, indicating authentic accumulation.
-4. **NSE vs BSE Arbitrage:** Inter-exchange spread is ${arbitragePercent || '0.04'}%, with strong delivery depth.
+A configured Gemini model is unavailable or the request failed. This fallback does not generate trade recommendations, price targets, stop-loss levels, sentiment scores, or execution-liquidity claims.
 
-### Trade Setup (Quantitative Bias)
-- **Primary Bias:** Accumulate on constructive dips
-- **Target 1:** ₹${Math.round(price * 1.05 * 10) / 10}
-- **Target 2:** ₹${Math.round(price * 1.11 * 10) / 10}
-- **Stop-Loss:** ₹${Math.round(price * 0.96 * 10) / 10}
-- **Risk-to-Reward:** 1:2.4`;
+Available quote inputs for reference:
+- Ticker: ${ticker || 'N/A'} | Company: ${companyName || 'N/A'}
+- Price: ₹${Number.isFinite(price) ? price : 'N/A'} | Change: ${Number.isFinite(changePercent) ? `${changePercent}%` : 'N/A'}
+- RSI(14): ${Number.isFinite(rsi) ? rsi : 'N/A'}
+- 50-day average: ₹${Number.isFinite(dma50) ? dma50 : 'N/A'} | 200-day average: ₹${Number.isFinite(dma200) ? dma200 : 'N/A'}
+- P/E reference: ${Number.isFinite(pe) ? pe : 'N/A'}
+- Cross-provider quote spread: ${Number.isFinite(arbitragePercent) ? `${arbitragePercent}%` : 'N/A'}
+
+The data provider is third-party and does not provide a verified live order book. Verify source timestamps and transaction costs before making investment decisions.`;
 
       return res.json({
         ticker,
@@ -232,7 +228,7 @@ ${ticker} is currently trading at ₹${price} (${changePercent > 0 ? '+' : ''}${
     console.warn('[AI Service] Non-fatal explain error:', err?.message);
     return res.json({
       ticker: req.body?.ticker || 'STOCK',
-      analysis: 'Market surveillance data synchronized with EOD Bhavcopy.',
+      analysis: 'AI analysis is unavailable. No trade recommendation or data-backed conclusion was generated.',
       timestamp: new Date().toISOString(),
     });
   }

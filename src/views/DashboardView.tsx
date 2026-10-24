@@ -243,7 +243,7 @@ export const DashboardView: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* Official Intraday Exchange Range & Circuit Band */}
+            {/* Available quote range and circuit metrics */}
             <div className="pt-2 border-t border-[#D96B43]/15 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono text-[#F7EEDB]/75">
               <div className="bg-[#131211]/60 px-2.5 py-1.5 rounded-lg border border-[#D96B43]/15">
                 <span className="text-[#F7EEDB]/50 text-[10px] block">Day High / Low</span>

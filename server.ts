@@ -26,7 +26,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = parseInt(process.env.PORT || '3000', 10);
 
-app.use(express.json());
+app.use(express.json({ limit: '256kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // In-memory cache for news digests to prevent rate-limit / quota exhaustion (TTL: 15 minutes)
@@ -36,6 +36,49 @@ interface CacheEntry {
 }
 const newsDigestCache = new Map<string, CacheEntry>();
 const aiAnalysisCache = new Map<string, CacheEntry>();
+
+// Best-effort per-process protection. For multi-instance production deployments,
+// use a shared rate-limit store (for example Redis) so limits apply across instances.
+interface RateLimitEntry {
+  count: number;
+  resetAt: number;
+}
+const aiRateLimitEntries = new Map<string, RateLimitEntry>();
+const AI_RATE_LIMIT_WINDOW_MS = 60_000;
+const AI_RATE_LIMIT_MAX_REQUESTS = 20;
+const AI_RATE_LIMIT_MAX_KEYS = 5_000;
+
+function limitAiRequests(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const now = Date.now();
+  const key = req.ip || req.socket.remoteAddress || 'unknown';
+  let entry = aiRateLimitEntries.get(key);
+
+  if (!entry || entry.resetAt <= now) {
+    if (aiRateLimitEntries.size >= AI_RATE_LIMIT_MAX_KEYS) {
+      for (const [storedKey, storedEntry] of aiRateLimitEntries) {
+        if (storedEntry.resetAt <= now) aiRateLimitEntries.delete(storedKey);
+      }
+      if (aiRateLimitEntries.size >= AI_RATE_LIMIT_MAX_KEYS) {
+        return res.status(503).json({ error: 'AI service is temporarily busy. Please retry shortly.' });
+      }
+    }
+    entry = { count: 0, resetAt: now + AI_RATE_LIMIT_WINDOW_MS };
+    aiRateLimitEntries.set(key, entry);
+  }
+
+  if (entry.count >= AI_RATE_LIMIT_MAX_REQUESTS) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((entry.resetAt - now) / 1000));
+    res.setHeader('Retry-After', String(retryAfterSeconds));
+    return res.status(429).json({ error: 'AI request limit reached. Please retry later.' });
+  }
+
+  entry.count += 1;
+  return next();
+}
+
+// If hosted behind a single trusted platform proxy, req.ip reflects the client IP.
+app.set('trust proxy', 1);
+app.use('/api/ai', limitAiRequests);
 
 // Helper to instantiate Gemini SDK with proper telemetry headers
 function getGeminiClient(customApiKey?: string) {
@@ -1064,8 +1107,8 @@ app.get('/api/market/stocks', async (req, res) => {
     return res.json({
       success: true,
       count: quotes.length,
-      dataSource: 'Official NSE & BSE Real-Time Feed (Yahoo/Google Finance)',
-      isLiveOfficial: true,
+      dataSource: 'Yahoo Finance quote/history metadata (third-party provider; not a direct official NSE/BSE feed)',
+      isLiveOfficial: false,
       timestamp: new Date().toISOString(),
       stocks: quotes,
     });
@@ -1080,7 +1123,7 @@ app.get('/api/market/benchmarks', async (req, res) => {
     const benchmarks = await getRealBenchmarks();
     return res.json({
       success: true,
-      dataSource: 'Official NSE & BSE Indices Feed',
+      dataSource: 'Yahoo Finance index quote metadata (third-party provider)',
       timestamp: new Date().toISOString(),
       benchmarks,
     });
@@ -1095,6 +1138,13 @@ app.get('/api/market/history/:ticker', async (req, res) => {
     const ticker = (req.params.ticker || 'RELIANCE').toUpperCase();
     const range = (req.query.range as string) || '3mo';
     const interval = (req.query.interval as string) || '1d';
+    const allowedRanges = new Set(['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']);
+    const allowedIntervals = new Set(['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo']);
+
+    if (!/^[A-Z0-9.^_-]{1,20}$/.test(ticker) || !allowedRanges.has(range) || !allowedIntervals.has(interval)) {
+      return res.status(400).json({ error: 'Invalid ticker, range, or interval.' });
+    }
+
     const candles = await getRealStockHistory(ticker, range, interval);
     return res.json({
       success: true,
@@ -1102,7 +1152,7 @@ app.get('/api/market/history/:ticker', async (req, res) => {
       range,
       interval,
       count: candles.length,
-      dataSource: 'Official NSE & BSE Historical EOD Candles',
+      dataSource: 'Yahoo Finance historical chart data (third-party provider; BSE historical closes are not separately verified)',
       candles,
     });
   } catch (err: any) {
@@ -1123,7 +1173,7 @@ app.post('/api/sql/sync-user', requireAuth, async (req: AuthRequest, res) => {
     return res.json({ success: true, user: synced });
   } catch (err: any) {
     console.error('[Cloud SQL] User sync error:', err?.message);
-    return res.status(500).json({ error: err.message || 'Database user sync failed' });
+    return res.status(500).json({ error: 'Database user sync failed' });
   }
 });
 
@@ -1135,7 +1185,7 @@ app.get('/api/sql/watchlist', requireAuth, async (req: AuthRequest, res) => {
     return res.json({ success: true, watchlist: items });
   } catch (err: any) {
     console.error('[Cloud SQL] Watchlist fetch error:', err?.message);
-    return res.status(500).json({ error: err.message || 'Failed to fetch watchlist' });
+    return res.status(500).json({ error: 'Failed to fetch watchlist' });
   }
 });
 
@@ -1158,7 +1208,7 @@ app.post('/api/sql/watchlist', requireAuth, async (req: AuthRequest, res) => {
     return res.json({ success: true, item: created });
   } catch (err: any) {
     console.error('[Cloud SQL] Add watchlist error:', err?.message);
-    return res.status(500).json({ error: err.message || 'Failed to save to database' });
+    return res.status(500).json({ error: 'Failed to save to database' });
   }
 });
 
@@ -1170,7 +1220,7 @@ app.get('/api/sql/portfolio', requireAuth, async (req: AuthRequest, res) => {
     return res.json({ success: true, portfolio: positions });
   } catch (err: any) {
     console.error('[Cloud SQL] Portfolio fetch error:', err?.message);
-    return res.status(500).json({ error: err.message || 'Failed to fetch portfolio' });
+    return res.status(500).json({ error: 'Failed to fetch portfolio' });
   }
 });
 

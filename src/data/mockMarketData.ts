@@ -1241,7 +1241,7 @@ export const SIMPLE_SCREENER_PRESETS: SimpleScreenerPreset[] = [
     title: 'Heavy Volume Breakout Movers',
     description: 'Equities trading above their 20-day moving average with surging delivery volumes.',
     badge: 'Momentum',
-    filterFn: (s) => s.currentPrice > s.dma20 && s.deliveryPercent > 45 && s.changePercent > 0.4,
+    filterFn: (s) => s.currentPrice > s.dma20 && (s.deliveryPercent ?? 0) > 45 && s.changePercent > 0.4,
   },
   {
     id: 'dividend-defense',

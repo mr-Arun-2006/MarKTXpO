@@ -47,8 +47,9 @@ export default function App() {
   const [alerts, setAlerts] = useState<MarketAlert[]>(INITIAL_ALERTS);
   const [language, setLanguage] = useState<SupportedLanguage>('en');
   const [lastLiveSync, setLastLiveSync] = useState<string | null>(null);
-  const [isLiveOfficial, setIsLiveOfficial] = useState<boolean>(true);
+  const [isLiveOfficial, setIsLiveOfficial] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [isMarketDataUnavailable, setIsMarketDataUnavailable] = useState<boolean>(false);
 
   // Active strategy passed to backtester
   const [activeStrategy, setActiveStrategy] = useState<CustomStrategy | undefined>(undefined);
@@ -81,7 +82,14 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile>(() => {
     try {
       const saved = localStorage.getItem('marktxpo_user_profile') || localStorage.getItem('nsebse_user_profile');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved) as UserProfile;
+        // API credentials are session-only; remove any legacy key saved by older builds.
+        const safeProfile = { ...parsed, customApiKey: '' };
+        localStorage.setItem('marktxpo_user_profile', JSON.stringify(safeProfile));
+        localStorage.removeItem('nsebse_user_profile');
+        return safeProfile;
+      }
     } catch {}
     return {
       name: 'Rohan Sharma',
@@ -127,7 +135,7 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // Fetch real market data from official NSE & BSE feeds via server
+  // Fetch quote and historical data through the configured server API
   const handleRefreshRealData = async () => {
     setIsRefreshing(true);
     try {
@@ -135,7 +143,8 @@ export default function App() {
       if (data && data.stocks && data.stocks.length > 0) {
         setStocks(data.stocks);
         setLastLiveSync(data.timestamp || new Date().toISOString());
-        setIsLiveOfficial(data.isLiveOfficial ?? true);
+        setIsLiveOfficial(data.isLiveOfficial ?? false);
+        setIsMarketDataUnavailable(false);
 
         setSelectedStock((prev) => {
           const match = data.stocks.find((s) => s.ticker === prev.ticker);
@@ -145,9 +154,12 @@ export default function App() {
             history: prev.history && prev.history.length > 0 ? prev.history : match.history,
           };
         });
+      } else {
+        setIsMarketDataUnavailable(true);
       }
     } catch (err) {
-      console.warn('[App] Real market refresh notice:', err);
+      setIsMarketDataUnavailable(true);
+      console.warn('[App] Market data refresh failed:', err);
     } finally {
       setIsRefreshing(false);
     }
@@ -188,7 +200,8 @@ export default function App() {
     const newProfile = { ...profile, ...updated };
     setProfile(newProfile);
     try {
-      localStorage.setItem('marktxpo_user_profile', JSON.stringify(newProfile));
+      // Do not persist a user's custom API key in readable browser storage.
+      localStorage.setItem('marktxpo_user_profile', JSON.stringify({ ...newProfile, customApiKey: '' }));
     } catch {}
   };
 
@@ -262,86 +275,7 @@ export default function App() {
     }
   };
 
-  // Real-time micro tick variations for continuous live floor feeling & volatility surveillance
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setStocks((prev) => {
-        if (!prev || prev.length === 0) return prev;
-        const indicesToTick = new Set<number>();
-        while (indicesToTick.size < Math.min(3, prev.length)) {
-          indicesToTick.add(Math.floor(Math.random() * prev.length));
-        }
 
-        const newlyTriggered: MarketAlert[] = [];
-
-        const updated = prev.map((s, idx) => {
-          if (!indicesToTick.has(idx)) return s;
-          const delta = (Math.random() - 0.49) * (s.nsePrice * 0.0003);
-          const newNse = Math.round((s.nsePrice + delta) * 100) / 100;
-          const newBse = Math.round((s.bsePrice + delta * (0.8 + Math.random() * 0.4)) * 100) / 100;
-          const spread = Math.round(((newNse - newBse) / newNse * 100) * 1000) / 1000;
-          const currentHourlyPct = s.hourlyChangePercent ?? 0;
-          const newHourlyPct = Math.round((currentHourlyPct + (delta / s.nsePrice) * 100 * 0.15) * 100) / 100;
-          const newHourlyTrend: 'UP' | 'DOWN' | 'NEUTRAL' =
-            newHourlyPct > 0.05 ? 'UP' : newHourlyPct < -0.05 ? 'DOWN' : 'NEUTRAL';
-
-          // Update real-time intraday high and low as price ticks
-          const updatedHigh = Math.max(s.high || newNse, newNse);
-          const updatedLow = Math.min(s.low || newNse, newNse);
-
-          const updatedStock = {
-            ...s,
-            nsePrice: newNse,
-            bsePrice: newBse,
-            currentPrice: newNse,
-            high: updatedHigh,
-            low: updatedLow,
-            spreadPercent: spread,
-            hourlyChangePercent: newHourlyPct,
-            hourlyChange: Math.round(newNse * (newHourlyPct / 100) * 100) / 100,
-            hourlyTrend: newHourlyTrend,
-          };
-
-          // Check if intraday range exceeds 14-day average range
-          const metric = computeStockVolatilityMetric(updatedStock, 1.0);
-          if (metric.isExceeded && !triggeredVolatilityTickersRef.current.has(s.ticker)) {
-            triggeredVolatilityTickersRef.current.add(s.ticker);
-            const alertObj = createVolatilityAlert(updatedStock, metric);
-            newlyTriggered.push(alertObj);
-          }
-
-          return updatedStock;
-        });
-
-        if (newlyTriggered.length > 0) {
-          const firstAlert = newlyTriggered[0];
-          setActiveVolatilityToast(firstAlert);
-          playVolatilityChime(profile.soundAlerts);
-          setAlerts((curr) => [...newlyTriggered, ...curr]);
-
-          if (auth.currentUser) {
-            newlyTriggered.forEach((al) => {
-              saveDbTradeAlert({
-                id: al.id,
-                userId: auth.currentUser!.uid,
-                ticker: al.ticker,
-                condition: 'VOLATILITY_EXPANSION',
-                threshold: al.targetValue,
-                intradayRange: al.intradayRange,
-                average14DayRange: al.average14DayRange,
-                expansionRatio: al.expansionRatio,
-                isActive: true,
-                createdAt: new Date().toISOString(),
-              }).catch(() => {});
-            });
-          }
-        }
-
-        return updated;
-      });
-    }, 1500);
-    return () => clearInterval(timer);
-  }, [profile.soundAlerts]);
 
   const unreadAlertsCount = alerts.filter((a) => a.triggered).length;
 
@@ -350,9 +284,10 @@ export default function App() {
       {/* Offline Toast Indicator */}
       <OfflineIndicator />
 
-      {/* Official Exchange Verification & Live Provenance Banner */}
+      {/* Market data connection and provenance banner */}
       <OfficialMarketBanner
         isLiveOfficial={isLiveOfficial}
+        isUnavailable={isMarketDataUnavailable}
         lastLiveSync={lastLiveSync}
         onRefresh={handleRefreshRealData}
         isRefreshing={isRefreshing}

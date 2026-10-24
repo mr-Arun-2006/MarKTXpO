@@ -51,12 +51,15 @@ export async function testFirestoreConnection(): Promise<boolean> {
     await getDocFromServer(doc(db, 'test', 'connection'));
     return true;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firebase client is offline. Using local cached state.');
-      return false;
-    }
-    // Expected permission-denied on non-existent test document is fine
-    return true;
+    // A permission-denied response proves the server was reached; other errors
+    // should not be reported as a healthy database connection.
+    const code = typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code)
+      : '';
+    if (code === 'permission-denied') return true;
+
+    console.warn('Firestore connection check failed:', error);
+    return false;
   }
 }
 
@@ -241,6 +244,7 @@ export async function saveDbUserProfile(profile: DbUserProfile): Promise<void> {
     await setDoc(userRef, profile, { merge: true });
   } catch (err) {
     console.error('Failed to save user profile to Firestore:', err);
+    throw new Error('Could not save the user profile. Check the connection and Firestore rules.', { cause: err });
   }
 }
 
@@ -265,6 +269,7 @@ export async function saveDbWatchlistItem(item: DbWatchlistItem): Promise<void> 
     await setDoc(itemRef, item);
   } catch (err) {
     console.error('Failed to save watchlist item to Firestore:', err);
+    throw new Error('Could not save the watchlist item.', { cause: err });
   }
 }
 
@@ -316,6 +321,7 @@ export async function saveDbGameProgress(progress: DbGameProgress): Promise<void
     await setDoc(progRef, progress, { merge: true });
   } catch (err) {
     console.error('Failed to save game progress to Firestore:', err);
+    throw new Error('Could not save game progress.', { cause: err });
   }
 }
 

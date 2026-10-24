@@ -32,8 +32,8 @@ export interface StockData {
   pe: number;
   pb: number;
   dividendYield: number;
-  high52: number;
-  low52: number;
+  high52?: number;
+  low52?: number;
   beta: number;
   rsi: number;
   macd: {
@@ -50,9 +50,9 @@ export interface StockData {
     middle: number;
     lower: number;
   };
-  deliveryPercent: number;
-  upperCircuit: number;
-  lowerCircuit: number;
+  deliveryPercent?: number;
+  upperCircuit?: number;
+  lowerCircuit?: number;
   spreadPercent: number; // (NSE - BSE) / NSE * 100
   arbitrageDirection: 'BUY_BSE_SELL_NSE' | 'BUY_NSE_SELL_BSE' | 'PARITY';
   potentialArbitrageProfitPer1000Shares: number;

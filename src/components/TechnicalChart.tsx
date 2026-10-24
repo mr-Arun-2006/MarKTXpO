@@ -38,6 +38,9 @@ export const TechnicalChart: React.FC<Props> = ({
     return all.slice(-count);
   }, [stock.history, timeframe]);
 
+  const hasHistoricalBSEData = candles.some((c) => c.bseClose != null && Number.isFinite(c.bseClose));
+  const showBSELine = showBSEOverlay && hasHistoricalBSEData;
+
   // Compute boundaries for chart
   const { minPrice, maxPrice, maxVol } = useMemo(() => {
     let min = Infinity;
@@ -101,15 +104,16 @@ export const TechnicalChart: React.FC<Props> = ({
   const sma20Path = useMemo(() => computeMAPath(20), [candles, minPrice, maxPrice]);
   const sma50Path = useMemo(() => computeMAPath(50), [candles, minPrice, maxPrice]);
 
-  // BSE Overlay line path
+  // Only plot BSE history when the provider actually supplied BSE closes.
   const bseOverlayPath = useMemo(() => {
-    return candles
-      .map((c, i) => {
-        const x = 30 + i * stepX;
-        const y = getY(c.bseClose || c.close);
-        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
-      })
-      .join(' ');
+    const points: string[] = [];
+    candles.forEach((c, i) => {
+      if (c.bseClose == null || !Number.isFinite(c.bseClose)) return;
+      const x = 30 + i * stepX;
+      const y = getY(c.bseClose);
+      points.push(`${points.length === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`);
+    });
+    return points.join(' ');
   }, [candles, minPrice, maxPrice]);
 
   // Area / Line Path
@@ -241,13 +245,15 @@ export const TechnicalChart: React.FC<Props> = ({
             </button>
             <button
               onClick={() => setShowBSEOverlay(!showBSEOverlay)}
-              className={`px-2 py-0.5 rounded text-[11px] border transition ${
-                showBSEOverlay
+              disabled={!hasHistoricalBSEData}
+              title={hasHistoricalBSEData ? 'Toggle BSE historical close overlay' : 'BSE historical close data is not available from the current provider'}
+              className={`px-2 py-0.5 rounded text-[11px] border transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                showBSEOverlay && hasHistoricalBSEData
                   ? 'bg-[#F7EEDB]/20 border-[#F7EEDB] text-[#F7EEDB] font-semibold'
                   : 'border-[#D96B43]/15 text-[#F7EEDB]/40'
               }`}
             >
-              BSE Spread
+              {hasHistoricalBSEData ? 'BSE Spread' : 'BSE History N/A'}
             </button>
           </div>
         )}
@@ -371,7 +377,7 @@ export const TechnicalChart: React.FC<Props> = ({
           )}
 
           {/* BSE Overlay Comparison Line (Butter Cream #F7EEDB) */}
-          {showBSEOverlay && bseOverlayPath && (
+          {showBSELine && bseOverlayPath && (
             <path
               d={bseOverlayPath}
               fill="none"
@@ -427,7 +433,7 @@ export const TechnicalChart: React.FC<Props> = ({
             <span className="w-2.5 h-2.5 rounded-sm bg-[#EF4444] inline-block"></span>
             <span>Bearish Close</span>
           </div>
-          {showBSEOverlay && (
+          {showBSELine && (
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-0.5 bg-[#F7EEDB] border border-[#F7EEDB] inline-block"></span>
               <span className="text-[#8CB4E0]">BSE Close (₹{stock.bsePrice}) [Spread: {stock.spreadPercent}%]</span>

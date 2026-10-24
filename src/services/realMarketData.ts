@@ -404,7 +404,16 @@ let benchmarksCache: LiveQuoteCache | null = null;
 const historyCache = new Map<string, LiveQuoteCache>();
 
 const CACHE_TTL_MS = 20 * 1000; // 20 seconds
-const HISTORY_CACHE_TTL_MS = 120 * 1000; // 2 minutes
+const HISTORY_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const MAX_HISTORY_CACHE_ENTRIES = 1_000;
+
+function setHistoryCache(key: string, data: OHLCVCandle[]): void {
+  if (historyCache.size >= MAX_HISTORY_CACHE_ENTRIES && !historyCache.has(key)) {
+    const oldestKey = historyCache.keys().next().value;
+    if (oldestKey !== undefined) historyCache.delete(oldestKey);
+  }
+  historyCache.set(key, { data, timestamp: Date.now() });
+}
 
 // Fetch real single quote from Yahoo Finance API
 async function fetchYahooQuote(symbol: string) {
@@ -417,6 +426,7 @@ async function fetchYahooQuote(symbol: string) {
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           Accept: 'application/json',
         },
+        signal: AbortSignal.timeout(8_000),
       }
     );
     if (!res.ok) return null;
@@ -427,7 +437,7 @@ async function fetchYahooQuote(symbol: string) {
   }
 }
 
-// Fetch real benchmark indices from official market
+// Fetch benchmark index quotes from the third-party provider
 export async function getRealBenchmarks() {
   if (benchmarksCache && Date.now() - benchmarksCache.timestamp < CACHE_TTL_MS) {
     return benchmarksCache.data;
@@ -442,7 +452,7 @@ export async function getRealBenchmarks() {
   ];
 
   try {
-    const results = await Promise.all(
+    const results = (await Promise.all(
       indexConfigs.map(async (idx) => {
         const meta = await fetchYahooQuote(idx.symbol);
         if (meta && meta.regularMarketPrice) {
@@ -457,20 +467,13 @@ export async function getRealBenchmarks() {
             change: Math.round(change * 100) / 100,
             changePercent: Math.round(pct * 100) / 100,
             isLive: true,
-            source: 'Official National & Bombay Stock Exchanges',
+            source: 'Yahoo Finance quote metadata (third-party provider)',
           };
         }
-        // Fallback default if transient network glitch
-        return {
-          name: idx.name,
-          exchange: idx.exchange,
-          value: idx.name === 'NIFTY 50' ? 23146.15 : idx.name === 'SENSEX' ? 74729.27 : 55844.0,
-          change: 104.2,
-          changePercent: 0.45,
-          isLive: false,
-        };
+        // Missing index data is unavailable, not a numeric quote to be guessed.
+        return null;
       })
-    );
+    )).filter((item): item is NonNullable<typeof item> => item !== null);
 
     benchmarksCache = {
       data: results,
@@ -478,43 +481,65 @@ export async function getRealBenchmarks() {
     };
     return results;
   } catch (e) {
-    return benchmarksCache?.data || [];
+    return [];
   }
 }
 
-function generateHistoricalCandlesForPrice(currentPrice: number, days = 60, trend = 0.0005, volatility = 0.014): OHLCVCandle[] {
-  const candles: OHLCVCandle[] = [];
-  let price = currentPrice * (1 - days * 0.0008);
-  const now = new Date();
+// Calculate indicators from observed closing prices only. Do not fabricate history.
+function mean(values: number[]): number {
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+}
 
-  for (let i = days; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    if (d.getDay() === 0 || d.getDay() === 6) continue;
-
-    const dateStr = d.toISOString().split('T')[0];
-    const dailyReturn = (Math.sin(i * 0.35) * 0.007) + trend + ((Math.random() - 0.49) * volatility * 2);
-    const open = Math.round(price * 100) / 100;
-    const isLast = i === 0;
-    const close = isLast ? currentPrice : Math.round(open * (1 + dailyReturn) * 100) / 100;
-    const high = Math.round(Math.max(open, close) * (1 + Math.random() * 0.01) * 100) / 100;
-    const low = Math.round(Math.min(open, close) * (1 - Math.random() * 0.01) * 100) / 100;
-    const volume = Math.floor(600000 + Math.random() * 3500000);
-    const spreadDelta = Math.round((Math.random() - 0.5) * (open * 0.0007) * 100) / 100;
-
-    candles.push({
-      date: dateStr,
-      open,
-      high,
-      low,
-      close,
-      volume,
-      nseClose: close,
-      bseClose: Math.round((close + spreadDelta) * 100) / 100,
-    });
-    price = close;
+function ema(values: number[], period: number): number[] {
+  if (!values.length) return [];
+  const alpha = 2 / (period + 1);
+  const result = [values[0]];
+  for (let i = 1; i < values.length; i += 1) {
+    result.push(values[i] * alpha + result[i - 1] * (1 - alpha));
   }
-  return candles;
+  return result;
+}
+
+function calculateTechnicalIndicators(candles: OHLCVCandle[]) {
+  const closes = candles
+    .map((candle) => candle.close)
+    .filter((close) => Number.isFinite(close) && close > 0);
+
+  // A 200-day baseline is required to avoid presenting short-history guesses as indicators.
+  if (closes.length < 200) return null;
+
+  const dma20 = mean(closes.slice(-20));
+  const dma50 = mean(closes.slice(-50));
+  const dma200 = mean(closes.slice(-200));
+  const last20 = closes.slice(-20);
+  const variance = mean(last20.map((close) => (close - dma20) ** 2));
+  const standardDeviation = Math.sqrt(variance);
+
+  const recentCloses = closes.slice(-15);
+  const recentChanges = recentCloses.slice(1).map((close, index) => close - recentCloses[index]);
+  const averageGain = mean(recentChanges.map((change) => Math.max(change, 0)));
+  const averageLoss = mean(recentChanges.map((change) => Math.max(-change, 0)));
+  const rsi = averageLoss === 0 ? (averageGain === 0 ? 50 : 100) : 100 - 100 / (1 + averageGain / averageLoss);
+
+  const ema12 = ema(closes, 12);
+  const ema26 = ema(closes, 26);
+  const macdSeries = closes.map((_close, index) => ema12[index] - ema26[index]);
+  const signalSeries = ema(macdSeries, 9);
+  const macdLine = macdSeries[macdSeries.length - 1];
+  const signalLine = signalSeries[signalSeries.length - 1];
+  const histogram = macdLine - signalLine;
+
+  return {
+    rsi: Math.round(rsi * 10) / 10,
+    dma20: Math.round(dma20 * 100) / 100,
+    dma50: Math.round(dma50 * 100) / 100,
+    dma200: Math.round(dma200 * 100) / 100,
+    macdLine: Math.round(macdLine * 100) / 100,
+    signalLine: Math.round(signalLine * 100) / 100,
+    histogram: Math.round(histogram * 100) / 100,
+    bollingerUpper: Math.round((dma20 + 2 * standardDeviation) * 100) / 100,
+    bollingerLower: Math.round((dma20 - 2 * standardDeviation) * 100) / 100,
+  };
 }
 
 // Fetch real live quotes for all registered Indian stocks
@@ -523,8 +548,9 @@ export async function getRealIndianStockQuotes(): Promise<StockData[]> {
     return stocksCache.data;
   }
 
-  // Fetch concurrently in batches of 8 to stay fast and respectful of rate limits
-  const batchSize = 8;
+  // Fetch in bounded batches. A stock is excluded if either exchange quote or
+  // sufficient observed history is unavailable; no random/default prices are substituted.
+  const batchSize = 6;
   const quotesList: StockData[] = [];
 
   for (let i = 0; i < INDIAN_STOCKS_REGISTRY.length; i += batchSize) {
@@ -532,51 +558,64 @@ export async function getRealIndianStockQuotes(): Promise<StockData[]> {
     const batchResults = await Promise.all(
       batch.map(async (st) => {
         try {
-          const [nseMeta, bseMeta] = await Promise.all([
+          const [nseMeta, bseMeta, history] = await Promise.all([
             fetchYahooQuote(st.nseSymbol),
             fetchYahooQuote(st.bseSymbol),
+            getRealStockHistory(st.ticker, '1y', '1d'),
           ]);
 
-          const nsePrice = nseMeta?.regularMarketPrice || 1000;
-          const prevClose = nseMeta?.chartPreviousClose || nsePrice;
-          const bsePrice = bseMeta?.regularMarketPrice || Math.round(nsePrice * (1 + (Math.random() - 0.5) * 0.001) * 100) / 100;
-          const change = Math.round((nsePrice - prevClose) * 100) / 100;
-          const changePercent = prevClose > 0 ? Math.round(((change / prevClose) * 100) * 100) / 100 : 0;
-          const spreadPercent = nsePrice > 0 ? Math.round((((nsePrice - bsePrice) / nsePrice) * 100) * 1000) / 1000 : 0;
-          const dayHigh = nseMeta?.regularMarketDayHigh || Math.max(nsePrice, prevClose * 1.01);
-          const dayLow = nseMeta?.regularMarketDayLow || Math.min(nsePrice, prevClose * 0.99);
-          const dayOpen = nseMeta?.regularMarketOpen || Math.round((prevClose + change * 0.4) * 100) / 100;
-          const high52 = nseMeta?.fiftyTwoWeekHigh || Math.round(nsePrice * 1.25 * 100) / 100;
-          const low52 = nseMeta?.fiftyTwoWeekLow || Math.round(nsePrice * 0.75 * 100) / 100;
-          const nseVol = nseMeta?.regularMarketVolume || 1850000;
-          const bseVol = bseMeta?.regularMarketVolume || Math.round(nseVol * 0.14);
-          const totalVol = nseVol + bseVol;
+          const nsePrice = nseMeta?.regularMarketPrice;
+          const bsePrice = bseMeta?.regularMarketPrice;
+          const prevClose = nseMeta?.chartPreviousClose;
 
-          const history = generateHistoricalCandlesForPrice(nsePrice, 60);
-          const rsi = Math.round(Math.min(82, Math.max(28, 50 + changePercent * 4.2)) * 10) / 10;
-          const dma20 = Math.round(nsePrice * (1 - changePercent * 0.004) * 100) / 100;
-          const dma50 = Math.round(nsePrice * 0.975 * 100) / 100;
-          const dma200 = Math.round(nsePrice * 0.925 * 100) / 100;
-          const stdDev = nsePrice * 0.022;
-          const bbUpper = Math.round((nsePrice + 2 * stdDev) * 100) / 100;
-          const bbLower = Math.round((nsePrice - 2 * stdDev) * 100) / 100;
-          const macdLine = Math.round((dma20 - dma50) * 10) / 10;
-          const signalLine = Math.round((macdLine * 0.85) * 10) / 10;
-          const histogram = Math.round((macdLine - signalLine) * 10) / 10;
-          const upperCircuit = Math.round(prevClose * 1.10 * 100) / 100;
-          const lowerCircuit = Math.round(prevClose * 0.90 * 100) / 100;
-          const arbitrageDirection = spreadPercent > 0.03 ? 'BUY_BSE_SELL_NSE' : spreadPercent < -0.03 ? 'BUY_NSE_SELL_BSE' : 'PARITY';
-          const potentialArbitrageProfitPer1000Shares = Math.round(Math.abs(nsePrice - bsePrice) * 1000);
+          if (
+            !Number.isFinite(nsePrice) || (nsePrice as number) <= 0 ||
+            !Number.isFinite(bsePrice) || (bsePrice as number) <= 0 ||
+            !Number.isFinite(prevClose) || (prevClose as number) <= 0
+          ) {
+            return null;
+          }
+
+          const indicators = calculateTechnicalIndicators(history);
+          if (!indicators) return null;
+
+          const validNsePrice = nsePrice as number;
+          const validBsePrice = bsePrice as number;
+          const validPrevClose = prevClose as number;
+          const change = Math.round((validNsePrice - validPrevClose) * 100) / 100;
+          const changePercent = Math.round((change / validPrevClose) * 10000) / 100;
+          const spreadPercent = Math.round((((validNsePrice - validBsePrice) / validNsePrice) * 100) * 1000) / 1000;
+          const dayHigh = nseMeta?.regularMarketDayHigh;
+          const dayLow = nseMeta?.regularMarketDayLow;
+          const dayOpen = nseMeta?.regularMarketOpen;
+          const high52 = nseMeta?.fiftyTwoWeekHigh;
+          const low52 = nseMeta?.fiftyTwoWeekLow;
+
+          // Required day OHLC fields must be present; do not substitute the quote for them.
+          if (
+            !Number.isFinite(dayHigh) || !Number.isFinite(dayLow) || !Number.isFinite(dayOpen) ||
+            (dayHigh as number) < (dayLow as number)
+          ) {
+            return null;
+          }
+          const nseVol = nseMeta?.regularMarketVolume ?? 0;
+          const bseVol = bseMeta?.regularMarketVolume ?? 0;
+          const totalVol = nseVol + bseVol;
+          const arbitrageDirection = spreadPercent > 0.03
+            ? 'BUY_BSE_SELL_NSE'
+            : spreadPercent < -0.03
+              ? 'BUY_NSE_SELL_BSE'
+              : 'PARITY';
 
           const stockObj: StockData = {
             ticker: st.ticker,
             bseCode: st.bseCode,
             name: st.name,
             sector: st.sector,
-            nsePrice: Math.round(nsePrice * 100) / 100,
-            bsePrice: Math.round(bsePrice * 100) / 100,
-            currentPrice: Math.round(nsePrice * 100) / 100,
-            previousClose: Math.round(prevClose * 100) / 100,
+            nsePrice: Math.round(validNsePrice * 100) / 100,
+            bsePrice: Math.round(validBsePrice * 100) / 100,
+            currentPrice: Math.round(validNsePrice * 100) / 100,
+            previousClose: Math.round(validPrevClose * 100) / 100,
             change,
             changePercent,
             open: Math.round(dayOpen * 100) / 100,
@@ -594,51 +633,41 @@ export async function getRealIndianStockQuotes(): Promise<StockData[]> {
             pe: st.pe,
             pb: st.pb,
             dividendYield: st.dividendYield,
-            annualDividendPerShare: Math.round(nsePrice * (st.dividendYield / 100) * 10) / 10,
-            payoutRatio: Math.round((40 + st.dividendYield * 10 + (Math.sin(nsePrice) * 6)) * 10) / 10,
-            upcomingDividendDate: new Date(Date.now() + ((Math.abs(Math.floor(nsePrice)) % 38) + 5) * 86400000).toISOString().split('T')[0],
-            upcomingDividendAmount: Math.round(((nsePrice * (st.dividendYield / 100)) / (st.dividendYield > 3 ? 3 : 2)) * 10) / 10,
-            hourlyChange: Math.round(nsePrice * ((((st.marketCapCr % 100) / 100) * 1.5 - 0.7 + changePercent * 0.3) / 100) * 100) / 100,
-            hourlyChangePercent: Math.round(((((st.marketCapCr % 100) / 100) * 1.5 - 0.7 + changePercent * 0.3)) * 100) / 100,
-            hourlyTrend: ((((st.marketCapCr % 100) / 100) * 1.5 - 0.7 + changePercent * 0.3)) > 0.05 ? 'UP' : ((((st.marketCapCr % 100) / 100) * 1.5 - 0.7 + changePercent * 0.3)) < -0.05 ? 'DOWN' : 'NEUTRAL',
             beta: st.beta,
-            rsi,
+            rsi: indicators.rsi,
             macd: {
-              macdLine,
-              signalLine,
-              histogram,
-              signal: histogram > 0 ? 'Bullish' : histogram < 0 ? 'Bearish' : 'Neutral',
+              macdLine: indicators.macdLine,
+              signalLine: indicators.signalLine,
+              histogram: indicators.histogram,
+              signal: indicators.histogram > 0 ? 'Bullish' : indicators.histogram < 0 ? 'Bearish' : 'Neutral',
             },
-            dma20,
-            dma50,
-            dma200,
+            dma20: indicators.dma20,
+            dma50: indicators.dma50,
+            dma200: indicators.dma200,
             bollingerBands: {
-              upper: bbUpper,
-              middle: nsePrice,
-              lower: bbLower,
+              upper: indicators.bollingerUpper,
+              middle: indicators.dma20,
+              lower: indicators.bollingerLower,
             },
-            deliveryPercent: Math.round((54 + (Math.sin(nsePrice) * 12)) * 10) / 10,
-            upperCircuit,
-            lowerCircuit,
             arbitrageDirection,
-            potentialArbitrageProfitPer1000Shares,
+            potentialArbitrageProfitPer1000Shares: Math.round(Math.abs(validNsePrice - validBsePrice) * 1000),
             sentiment: {
-              score: Math.round(Math.min(95, Math.max(25, 65 + changePercent * 5))),
-              label: changePercent > 1.5 ? 'Very Bullish' : changePercent >= 0 ? 'Bullish' : changePercent > -1.5 ? 'Neutral' : 'Bearish',
-              confidence: 92,
-              newsScore: 78,
-              socialScore: 71,
-              institutionalScore: 86,
-              keyCatalyst: `${st.name} records robust delivery volume across NSE and BSE boards with active institutional liquidity.`,
+              score: 0,
+              label: 'Neutral',
+              confidence: 0,
+              newsScore: 0,
+              socialScore: 0,
+              institutionalScore: 0,
+              keyCatalyst: 'Verified news, social, and institutional-flow data are not connected.',
             },
             history,
-            isLiveOfficial: true,
-            dataSource: 'Official NSE & BSE Real-Time Exchange Feed (Yahoo/Google Finance)',
+            isLiveOfficial: false,
+            dataSource: 'Yahoo Finance quote/history metadata; registry fundamentals are reference estimates; not a direct NSE/BSE official feed',
             lastLiveSync: new Date().toISOString(),
           };
 
           return stockObj;
-        } catch (err) {
+        } catch {
           return null;
         }
       })
@@ -655,7 +684,7 @@ export async function getRealIndianStockQuotes(): Promise<StockData[]> {
     return quotesList;
   }
 
-  return stocksCache?.data || [];
+  return [];
 }
 
 // Fetch real historical daily candles from Yahoo Finance
@@ -682,6 +711,7 @@ export async function getRealStockHistory(
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           Accept: 'application/json',
         },
+        signal: AbortSignal.timeout(8_000),
       }
     );
 
@@ -701,14 +731,12 @@ export async function getRealStockHistory(
       const high = quotes.high?.[i];
       const low = quotes.low?.[i];
       const close = quotes.close?.[i];
-      const volume = quotes.volume?.[i] || 500000;
+      const volume = quotes.volume?.[i] ?? 0;
 
       // Skip invalid NaN entries
       if (open == null || high == null || low == null || close == null) continue;
 
       const dateStr = new Date(timestamps[i] * 1000).toISOString().split('T')[0];
-      const spreadDelta = (Math.random() - 0.5) * (open * 0.0006);
-
       candles.push({
         date: dateStr,
         open: Math.round(open * 100) / 100,
@@ -717,17 +745,13 @@ export async function getRealStockHistory(
         close: Math.round(close * 100) / 100,
         volume: volume,
         nseClose: Math.round(close * 100) / 100,
-        bseClose: Math.round((close + spreadDelta) * 100) / 100,
       });
     }
 
-    historyCache.set(cacheKey, {
-      data: candles,
-      timestamp: Date.now(),
-    });
+    setHistoryCache(cacheKey, candles);
 
     return candles;
   } catch (err) {
-    return cached?.data || [];
+    return [];
   }
 }

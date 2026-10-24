@@ -35,10 +35,13 @@ interface NewsDigestData {
   overallSentiment: 'Bullish' | 'Neutral' | 'Bearish';
   headlines: NewsHeadline[];
   sources?: { title?: string; url?: string }[];
+  dataAvailable?: boolean;
+  dataStatus?: string;
 }
 
-// Client-side cache to instantly display digest and prevent quota exhaustion on ticker toggling
+// Cache successful grounded results only; unavailable responses must not mask a later retry.
 const clientDigestCache = new Map<string, NewsDigestData>();
+const MAX_CLIENT_DIGEST_CACHE_ENTRIES = 100;
 
 export const AINewsDigest: React.FC<Props> = ({ stock, language, customApiKey }) => {
   const [loading, setLoading] = useState<boolean>(true);
@@ -79,8 +82,14 @@ export const AINewsDigest: React.FC<Props> = ({ stock, language, customApiKey })
       });
 
       if (!res.ok) throw new Error('Failed to fetch AI news digest');
-      const data = await res.json();
-      clientDigestCache.set(cacheKey, data);
+      const data = await res.json() as NewsDigestData;
+      if (data.dataAvailable !== false) {
+        if (clientDigestCache.size >= MAX_CLIENT_DIGEST_CACHE_ENTRIES && !clientDigestCache.has(cacheKey)) {
+          const oldestKey = clientDigestCache.keys().next().value;
+          if (oldestKey !== undefined) clientDigestCache.delete(oldestKey);
+        }
+        clientDigestCache.set(cacheKey, data);
+      }
       setDigest(data);
     } catch (err: any) {
       console.warn('[News Digest] Gracefully handling fetch:', err?.message);
@@ -105,12 +114,20 @@ export const AINewsDigest: React.FC<Props> = ({ stock, language, customApiKey })
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold text-[#F7EEDB] tracking-tight">AI News Digest &amp; Market Impact</h2>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#8CB4E0]/15 text-[#8CB4E0] border border-[#8CB4E0]/30 font-mono font-semibold">
-                SEARCH GROUNDED
+              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-mono font-semibold ${
+                loading
+                  ? 'bg-[#F7EEDB]/10 text-[#F7EEDB]/70 border-[#F7EEDB]/20'
+                  : digest?.dataAvailable === true
+                  ? 'bg-[#8CB4E0]/15 text-[#8CB4E0] border-[#8CB4E0]/30'
+                  : 'bg-[#D96B43]/15 text-[#D96B43] border-[#D96B43]/30'
+              }`}>
+                {loading ? 'CHECKING SOURCES' : digest?.dataAvailable === true ? 'SOURCE-GROUNDED' : 'NEWS UNAVAILABLE'}
               </span>
             </div>
             <p className="text-xs text-[#F7EEDB]/60 mt-0.5">
-              Live financial headlines for {stock.ticker} with 1-sentence directional impact summary.
+              {digest?.dataAvailable === true
+                ? `Grounded news retrieved for ${stock.ticker}; check the linked sources and timestamps.`
+                : `Verified current headlines for ${stock.ticker} are unavailable until source-grounded results can be retrieved.`}
             </p>
           </div>
         </div>
@@ -176,7 +193,7 @@ export const AINewsDigest: React.FC<Props> = ({ stock, language, customApiKey })
                     1-Sentence AI Market Impact Summary
                   </span>
                   <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#8CB4E0]/15 text-[#8CB4E0] font-mono">
-                    DALAL STREET SURVEILLANCE
+                    {digest.dataAvailable === false ? 'NO VERIFIED NEWS' : 'NEWS CONTEXT'}
                   </span>
                 </div>
                 <p className="text-sm sm:text-base font-semibold text-[#F7EEDB] leading-snug">

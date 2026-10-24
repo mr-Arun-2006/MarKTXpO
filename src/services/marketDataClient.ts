@@ -37,7 +37,7 @@ export interface RealHistoryResponse {
 }
 
 /**
- * Fetch 100% genuine real-time Indian equity stock quotes from NSE & BSE via server proxy
+ * Fetch Indian equity quote metadata from the configured server API
  */
 export async function fetchRealStockQuotes(): Promise<RealMarketResponse | null> {
   try {
@@ -52,7 +52,7 @@ export async function fetchRealStockQuotes(): Promise<RealMarketResponse | null>
 }
 
 /**
- * Fetch official benchmark indices (NIFTY 50, SENSEX, BANK NIFTY, NIFTY IT, INDIA VIX)
+ * Fetch benchmark index quote metadata
  */
 export async function fetchRealBenchmarks(): Promise<BenchmarkIndex[]> {
   try {
@@ -67,7 +67,7 @@ export async function fetchRealBenchmarks(): Promise<BenchmarkIndex[]> {
 }
 
 /**
- * Fetch official multi-month historical EOD candles for a specific Indian stock
+ * Fetch third-party historical candles for a specific Indian stock
  */
 export async function fetchRealStockHistory(
   ticker: string,
@@ -75,7 +75,7 @@ export async function fetchRealStockHistory(
   interval = '1d'
 ): Promise<OHLCVCandle[]> {
   try {
-    const res = await fetch(`/api/market/history/${encodeURIComponent(ticker)}?range=${range}&interval=${interval}`);
+    const res = await fetch(`/api/market/history?ticker=${encodeURIComponent(ticker)}&range=${encodeURIComponent(range)}&interval=${encodeURIComponent(interval)}`);
     if (!res.ok) return [];
     const data: RealHistoryResponse = await res.json();
     return data.candles || [];

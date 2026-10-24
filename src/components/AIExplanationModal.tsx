@@ -76,8 +76,8 @@ export const AIExplanationModal: React.FC<Props> = ({
     {
       name: 'Delivery Volume Backing',
       condition: 'Delivery Percentage > 40%',
-      passed: stock.deliveryPercent >= 40,
-      value: `${stock.deliveryPercent}%`,
+      passed: stock.deliveryPercent != null && stock.deliveryPercent >= 40,
+      value: stock.deliveryPercent != null ? `${stock.deliveryPercent}%` : 'Unavailable from provider',
       threshold: '≥ 40%',
       weight: 10,
     },

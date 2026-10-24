@@ -1030,7 +1030,7 @@ export const WatchlistDividendView: React.FC<Props> = ({
                         </td>
 
                         <td className="py-3.5 px-4 text-center text-[#F7EEDB]/75">
-                          {stock.payoutRatio ? `${stock.payoutRatio}%` : '55.0%'}
+                          {stock.payoutRatio != null ? `${stock.payoutRatio}%` : 'N/A'}
                         </td>
 
                         <td className="py-3.5 px-4 text-right text-[#F7EEDB]/75">

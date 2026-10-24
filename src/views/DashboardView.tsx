@@ -243,7 +243,7 @@ export const DashboardView: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* Official Intraday Exchange Range & Circuit Band */}
+            {/* Available quote range and circuit metrics */}
             <div className="pt-2 border-t border-[#D96B43]/15 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono text-[#F7EEDB]/75">
               <div className="bg-[#131211]/60 px-2.5 py-1.5 rounded-lg border border-[#D96B43]/15">
                 <span className="text-[#F7EEDB]/50 text-[10px] block">Day High / Low</span>
@@ -254,12 +254,12 @@ export const DashboardView: React.FC<Props> = ({
                 <span className="text-[#F7EEDB] font-semibold">₹{selectedStock.previousClose}</span> / <span>₹{selectedStock.open || selectedStock.previousClose}</span>
               </div>
               <div className="bg-[#131211]/60 px-2.5 py-1.5 rounded-lg border border-[#D96B43]/15">
-                <span className="text-[#F7EEDB]/50 text-[10px] block">Upper Circuit (10%)</span>
-                <span className="text-[#22C55E] font-semibold">₹{selectedStock.upperCircuit}</span>
+                <span className="text-[#F7EEDB]/50 text-[10px] block">Upper Circuit</span>
+                <span className="text-[#22C55E] font-semibold">{selectedStock.upperCircuit != null ? `₹${selectedStock.upperCircuit.toFixed(2)}` : 'N/A'}</span>
               </div>
               <div className="bg-[#131211]/60 px-2.5 py-1.5 rounded-lg border border-[#D96B43]/15">
-                <span className="text-[#F7EEDB]/50 text-[10px] block">Lower Circuit (10%)</span>
-                <span className="text-[#EF4444] font-semibold">₹{selectedStock.lowerCircuit}</span>
+                <span className="text-[#F7EEDB]/50 text-[10px] block">Lower Circuit</span>
+                <span className="text-[#EF4444] font-semibold">{selectedStock.lowerCircuit != null ? `₹${selectedStock.lowerCircuit.toFixed(2)}` : 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -286,7 +286,7 @@ export const DashboardView: React.FC<Props> = ({
             <div className="p-3.5 rounded-xl bg-[#1A1816] border border-[#D96B43]/30 hover:border-[#D96B43] hover:shadow-[0_0_14px_rgba(217,107,67,0.25)] transition-all text-xs">
               <span className="text-[#F7EEDB]/60">52W Range</span>
               <div className="text-xs font-bold text-[#F7EEDB] font-mono mt-1">
-                ₹{selectedStock.low52} - ₹{selectedStock.high52}
+                {selectedStock.low52 != null && selectedStock.high52 != null ? `₹${selectedStock.low52} - ₹${selectedStock.high52}` : 'N/A'}
               </div>
               <span className="text-[10px] text-[#F7EEDB]/50">P/E: {selectedStock.pe} · Beta: {selectedStock.beta}</span>
             </div>
@@ -294,7 +294,7 @@ export const DashboardView: React.FC<Props> = ({
             <div className="p-3.5 rounded-xl bg-[#1A1816] border border-[#22C55E]/30 hover:border-[#22C55E] hover:shadow-[0_0_14px_rgba(34,197,94,0.25)] transition-all text-xs">
               <span className="text-[#F7EEDB]/60">Delivery &amp; RSI</span>
               <div className="text-xs font-bold text-[#22C55E] font-mono mt-1">
-                {selectedStock.deliveryPercent}% Delivery
+                {selectedStock.deliveryPercent != null ? `${selectedStock.deliveryPercent}% Delivery` : 'Delivery data unavailable'}
               </div>
               <span className="text-[10px] text-[#8CB4E0] font-mono">RSI(14): {selectedStock.rsi}</span>
             </div>

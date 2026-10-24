@@ -32,11 +32,8 @@ export const CompareView: React.FC<Props> = ({
   const priceDiff = Math.round((nsePrice - bsePrice) * 100) / 100;
   const spreadPercent = selectedStock.spreadPercent;
 
-  // Arbitrage Calculator with STT and Exchange Charges (approx 0.032% statutory)
-  const grossProfit = Math.abs(priceDiff) * sharesQty;
-  const totalTurnover = (Math.max(nsePrice, bsePrice) + Math.min(nsePrice, bsePrice)) * sharesQty;
-  const estimatedCharges = Math.round(totalTurnover * 0.00032 * 10) / 10;
-  const netProfit = Math.round((grossProfit - estimatedCharges) * 10) / 10;
+  // Indicative last-quote spread only; executable costs and order-book depth are not available.
+  const indicativeGrossSpread = Math.abs(priceDiff) * sharesQty;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8 text-[#F7EEDB]">
@@ -45,14 +42,14 @@ export const CompareView: React.FC<Props> = ({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-bold text-[#F7EEDB] tracking-tight">
-              NSE vs. BSE Inter-Exchange Analysis
+              NSE vs. BSE Quote Comparison
             </h1>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#D96B43]/10 text-[#F7EEDB] border border-[#D96B43]/20 font-bold font-mono">
-              ARBITRAGE SCANNER
+              QUOTE COMPARISON
             </span>
           </div>
           <p className="text-xs text-[#F7EEDB]/60 mt-1">
-            Compare execution liquidity, order book spread discrepancies, and settlement economics across both exchanges.
+            Compare available third-party quote metadata. This page does not access synchronized live order books.
           </p>
         </div>
 
@@ -107,28 +104,28 @@ export const CompareView: React.FC<Props> = ({
                 <div className="text-sm font-bold text-[#F7EEDB] font-mono mt-0.5">
                   {(selectedStock.nseVolume / 100000).toFixed(2)} L Shares
                 </div>
-                <span className="text-[10px] text-[#D96B43]">78% of Total Market</span>
+                <span className="text-[10px] text-[#D96B43]">Provider-reported volume</span>
               </div>
 
               <div className="p-3 rounded-xl bg-[#131211] border border-[#D96B43]/15">
                 <span className="text-[#F7EEDB]/50">Delivery Percentage</span>
                 <div className="text-sm font-bold text-[#F7EEDB] font-mono mt-0.5">
-                  {selectedStock.deliveryPercent}%
+                  {selectedStock.deliveryPercent != null ? `${selectedStock.deliveryPercent}%` : 'N/A'}
                 </div>
-                <span className="text-[10px] text-[#F7EEDB]/60">Institutional Holding</span>
+                <span className="text-[10px] text-[#F7EEDB]/60">Delivery data</span>
               </div>
 
               <div className="p-3 rounded-xl bg-[#131211] border border-[#D96B43]/15">
-                <span className="text-[#F7EEDB]/50">Upper Circuit (+10%)</span>
+                <span className="text-[#F7EEDB]/50">Upper Circuit</span>
                 <div className="text-sm font-bold text-[#F7EEDB] font-mono mt-0.5">
-                  ₹{selectedStock.upperCircuit.toFixed(2)}
+                  {selectedStock.upperCircuit != null ? `₹${selectedStock.upperCircuit.toFixed(2)}` : 'N/A'}
                 </div>
               </div>
 
               <div className="p-3 rounded-xl bg-[#131211] border border-[#D96B43]/15">
-                <span className="text-[#F7EEDB]/50">Lower Circuit (-10%)</span>
+                <span className="text-[#F7EEDB]/50">Lower Circuit</span>
                 <div className="text-sm font-bold text-[#EF4444] font-mono mt-0.5">
-                  ₹{selectedStock.lowerCircuit.toFixed(2)}
+                  {selectedStock.lowerCircuit != null ? `₹${selectedStock.lowerCircuit.toFixed(2)}` : 'N/A'}
                 </div>
               </div>
             </div>
@@ -164,28 +161,28 @@ export const CompareView: React.FC<Props> = ({
                 <div className="text-sm font-bold text-[#F7EEDB] font-mono mt-0.5">
                   {(selectedStock.bseVolume / 100000).toFixed(2)} L Shares
                 </div>
-                <span className="text-[10px] text-[#D96B43]">22% of Total Market</span>
+                <span className="text-[10px] text-[#D96B43]">Provider-reported volume</span>
               </div>
 
               <div className="p-3 rounded-xl bg-[#131211] border border-[#D96B43]/15">
                 <span className="text-[#F7EEDB]/50">Delivery Percentage</span>
                 <div className="text-sm font-bold text-[#F7EEDB] font-mono mt-0.5">
-                  {(selectedStock.deliveryPercent * 0.96).toFixed(1)}%
+                  {selectedStock.deliveryPercent != null ? `${selectedStock.deliveryPercent.toFixed(1)}%` : 'N/A'}
                 </div>
-                <span className="text-[10px] text-[#F7EEDB]/60">Retail &amp; HNI Heavy</span>
+                <span className="text-[10px] text-[#F7EEDB]/60">Delivery data</span>
               </div>
 
               <div className="p-3 rounded-xl bg-[#131211] border border-[#D96B43]/15">
-                <span className="text-[#F7EEDB]/50">Upper Circuit (+10%)</span>
+                <span className="text-[#F7EEDB]/50">Upper Circuit</span>
                 <div className="text-sm font-bold text-[#F7EEDB] font-mono mt-0.5">
-                  ₹{selectedStock.upperCircuit.toFixed(2)}
+                  {selectedStock.upperCircuit != null ? `₹${selectedStock.upperCircuit.toFixed(2)}` : 'N/A'}
                 </div>
               </div>
 
               <div className="p-3 rounded-xl bg-[#131211] border border-[#D96B43]/15">
-                <span className="text-[#F7EEDB]/50">Lower Circuit (-10%)</span>
+                <span className="text-[#F7EEDB]/50">Lower Circuit</span>
                 <div className="text-sm font-bold text-[#EF4444] font-mono mt-0.5">
-                  ₹{selectedStock.lowerCircuit.toFixed(2)}
+                  {selectedStock.lowerCircuit != null ? `₹${selectedStock.lowerCircuit.toFixed(2)}` : 'N/A'}
                 </div>
               </div>
             </div>
@@ -244,7 +241,7 @@ export const CompareView: React.FC<Props> = ({
               <div className="flex justify-between">
                 <span>Direction:</span>
                 <span className="font-bold text-[#D96B43]">
-                  {priceDiff > 0 ? 'Buy on BSE → Sell on NSE' : 'Buy on NSE → Sell on BSE'}
+                  {priceDiff > 0 ? 'NSE quote above BSE' : priceDiff < 0 ? 'BSE quote above NSE' : 'Quotes at parity'}
                 </span>
               </div>
             </div>
@@ -252,27 +249,23 @@ export const CompareView: React.FC<Props> = ({
 
           <div className="md:col-span-2 grid sm:grid-cols-3 gap-4">
             <div className="p-4 rounded-xl bg-[#131211] border border-[#D96B43]/15 text-center">
-              <span className="text-xs text-[#F7EEDB]/50">Gross Arbitrage</span>
+              <span className="text-xs text-[#F7EEDB]/50">Indicative Gross Spread</span>
               <div className="text-xl font-bold text-[#F7EEDB] font-mono mt-1">
-                ₹{grossProfit.toLocaleString('en-IN')}
+                ₹{indicativeGrossSpread.toLocaleString('en-IN')}
               </div>
-              <span className="text-[10px] text-[#F7EEDB]/40">Before exchange costs</span>
+              <span className="text-[10px] text-[#F7EEDB]/40">Quote difference × quantity</span>
             </div>
 
             <div className="p-4 rounded-xl bg-[#131211] border border-[#D96B43]/15 text-center">
-              <span className="text-xs text-[#F7EEDB]/50">STT &amp; Statutory Fees</span>
-              <div className="text-xl font-bold text-[#EF4444] font-mono mt-1">
-                -₹{estimatedCharges.toLocaleString('en-IN')}
-              </div>
-              <span className="text-[10px] text-[#F7EEDB]/40">~0.032% statutory</span>
+              <span className="text-xs text-[#F7EEDB]/50">Taxes, Fees &amp; Slippage</span>
+              <div className="text-xl font-bold text-[#F7EEDB]/70 font-mono mt-1">N/A</div>
+              <span className="text-[10px] text-[#F7EEDB]/40">Complete transaction costs unavailable</span>
             </div>
 
             <div className="p-4 rounded-xl bg-[#131211] border border-[#D96B43]/30 text-center">
-              <span className="text-xs text-[#D96B43] font-bold">Estimated Net Capture</span>
-              <div className={`text-xl font-bold font-mono mt-1 ${netProfit >= 0 ? 'text-[#F7EEDB]' : 'text-[#EF4444]'}`}>
-                ₹{netProfit.toLocaleString('en-IN')}
-              </div>
-              <span className="text-[10px] text-[#F7EEDB]/50">T+1 Settlement Capture</span>
+              <span className="text-xs text-[#D96B43] font-bold">Executable Net P&amp;L</span>
+              <div className="text-xl font-bold text-[#F7EEDB]/70 font-mono mt-1">Not calculated</div>
+              <span className="text-[10px] text-[#F7EEDB]/50">No profit guarantee or trade signal</span>
             </div>
           </div>
         </div>
@@ -280,7 +273,7 @@ export const CompareView: React.FC<Props> = ({
         <div className="p-3.5 rounded-xl bg-[#131211] border border-[#D96B43]/20 text-xs text-[#F7EEDB]/80 flex items-start gap-2.5">
           <AlertCircle className="w-4 h-4 text-[#D96B43] shrink-0 mt-0.5" />
           <p className="leading-relaxed">
-            <strong>Execution Caveat:</strong> Cross-exchange arbitrage requires linked demat accounts. Ensure depth in the lower liquidity exchange order book to avoid negative slippage.
+            <strong>Execution Caveat:</strong> The displayed difference uses third-party last-quote data, not synchronized bid/ask prices or full order-book depth. Validate timestamps, market depth, exchange charges, taxes, brokerage and slippage before evaluating any trade.
           </p>
         </div>
       </div>

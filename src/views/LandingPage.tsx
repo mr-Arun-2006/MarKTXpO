@@ -60,7 +60,7 @@ export const LandingPage: React.FC<Props> = ({
           </h1>
 
           <p className="max-w-2xl mx-auto text-sm sm:text-base text-[#F7EEDB]/70 leading-relaxed">
-            Eliminate speculation in Dalal Street. Combine deterministic quantitative rules with Gemini 3.8 Flash qualitative synthesis, real-time cross-exchange arbitrage detection, and backtesting simulations.
+            Explore Indian equities with deterministic technical indicators, Gemini-assisted explanations, third-party NSE/BSE quote comparisons, and strategy backtesting. Market data may be delayed; this app is not a direct exchange feed.
           </p>
 
           {/* CTA Buttons */}
@@ -108,7 +108,7 @@ export const LandingPage: React.FC<Props> = ({
           <div className="pt-8 flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-xs text-[#F7EEDB]/60 font-mono">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-[#22C55E]" />
-              <span>Dual NSE &amp; BSE Real-time Parity</span>
+              <span>NSE/BSE Quote Comparison</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-[#8CB4E0]" />
@@ -202,7 +202,7 @@ export const LandingPage: React.FC<Props> = ({
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-4 h-4 text-[#22C55E] shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-[#F7EEDB]">Dual NSE &amp; BSE Arbitrage Engine:</strong> Scans order books across both national exchanges simultaneously to capture inter-exchange spreads.
+                    <strong className="text-[#F7EEDB]">NSE/BSE Price Comparison:</strong> Compares available third-party quote metadata. It does not scan live exchange order books or guarantee executable arbitrage.
                   </div>
                 </div>
 
@@ -300,7 +300,7 @@ export const LandingPage: React.FC<Props> = ({
           </div>
 
           <div className="flex items-center gap-4 font-mono">
-            <span>Verified with NSE &amp; BSE EOD Bhavcopy</span>
+            <span>Historical data from a third-party price provider</span>
             <span>·</span>
             <span className="text-[#8CB4E0]">Gemini 3.8 Flash Powered</span>
           </div>

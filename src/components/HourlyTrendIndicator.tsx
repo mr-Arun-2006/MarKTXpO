@@ -12,7 +12,7 @@ interface Props {
 }
 
 export const HourlyTrendIndicator: React.FC<Props> = ({
-  hourlyChangePercent = 0,
+  hourlyChangePercent,
   hourlyTrend,
   hourlyChange,
   currentPrice,
@@ -20,6 +20,12 @@ export const HourlyTrendIndicator: React.FC<Props> = ({
   showIconOnly = false,
   className = '',
 }) => {
+  if (hourlyChangePercent == null || !Number.isFinite(hourlyChangePercent)) {
+    return (
+      <span title="Hourly movement data is unavailable" className={`inline-flex items-center rounded-lg border border-[#F7EEDB]/15 px-2 py-1 text-[10px] font-mono text-[#F7EEDB]/50 ${className}`}>N/A</span>
+    );
+  }
+
   // Determine trend if not explicitly passed
   const trend: 'UP' | 'DOWN' | 'NEUTRAL' =
     hourlyTrend ||

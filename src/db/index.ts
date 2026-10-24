@@ -1,3 +1,5 @@
+// Load local environment variables before the connection pool reads them.
+import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema.ts';

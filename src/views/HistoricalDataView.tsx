@@ -34,9 +34,9 @@ export const HistoricalDataView: React.FC<Props> = ({
       c.high,
       c.low,
       c.nseClose || c.close,
-      c.bseClose || c.close,
+      c.bseClose ?? '',
       c.volume,
-      ((c.nseClose || c.close) - (c.bseClose || c.close)).toFixed(2),
+      c.bseClose != null ? ((c.nseClose ?? c.close) - c.bseClose).toFixed(2) : '',
     ]);
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -160,7 +160,7 @@ export const HistoricalDataView: React.FC<Props> = ({
             </thead>
             <tbody className="divide-y divide-[#D96B43]/10">
               {candles.map((c) => {
-                const diff = (c.nseClose || c.close) - (c.bseClose || c.close);
+                const diff = c.bseClose != null ? (c.nseClose ?? c.close) - c.bseClose : null;
                 const isBull = c.close >= c.open;
                 return (
                   <tr key={c.date} className="hover:bg-[#25221F]/50 transition">
@@ -172,11 +172,11 @@ export const HistoricalDataView: React.FC<Props> = ({
                       ₹{(c.nseClose || c.close).toFixed(2)}
                     </td>
                     <td className="py-2.5 px-4 text-right font-bold text-[#F7EEDB]">
-                      ₹{(c.bseClose || c.close).toFixed(2)}
+                      {c.bseClose != null ? `₹${c.bseClose.toFixed(2)}` : 'N/A'}
                     </td>
                     <td className="py-2.5 px-4 text-right">
-                      <span className={diff > 0 ? 'text-[#D96B43]' : diff < 0 ? 'text-[#F7EEDB]' : 'text-[#F7EEDB]/40'}>
-                        {diff > 0 ? '+' : ''}₹{diff.toFixed(2)}
+                      <span className={diff == null ? 'text-[#F7EEDB]/40' : diff > 0 ? 'text-[#D96B43]' : diff < 0 ? 'text-[#F7EEDB]' : 'text-[#F7EEDB]/40'}>
+                        {diff == null ? 'N/A' : `${diff > 0 ? '+' : ''}₹${diff.toFixed(2)}`}
                       </span>
                     </td>
                     <td className="py-2.5 px-4 text-right text-[#F7EEDB]">

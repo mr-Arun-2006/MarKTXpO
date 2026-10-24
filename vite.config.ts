@@ -32,7 +32,7 @@ export default defineConfig(() => {
             {
               name: 'Dashboard Terminal',
               short_name: 'Terminal',
-              description: 'View real-time NSE & BSE dual-exchange surveillance',
+              description: 'View available third-party quotes; data may be delayed',
               url: '/',
               icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }],
             },
@@ -44,9 +44,9 @@ export default defineConfig(() => {
               icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }],
             },
             {
-              name: 'NSE vs BSE Arbitrage',
+              name: 'NSE/BSE Quote Comparison',
               short_name: 'Compare',
-              description: 'Inter-exchange spread and arbitrage scanner',
+              description: 'Compare provider quote metadata; not an executable arbitrage signal',
               url: '/',
               icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }],
             },

@@ -131,125 +131,122 @@ function getCuratedStockNewsDigest(ticker: string, companyName: string, language
   };
 }
 
-// 1. AI Stock Trade Explanation Endpoint
+// 1. AI Stock Analysis Endpoint
 app.post('/api/ai/explain', async (req, res) => {
-  try {
-    const {
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const safeString = (value: unknown, fallback: string, maxLength: number) =>
+    typeof value === 'string' && value.trim() ? value.trim().slice(0, maxLength) : fallback;
+  const safeNumber = (value: unknown): number | undefined =>
+    typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+
+  const ticker = safeString(body.ticker, 'STOCK', 20).toUpperCase();
+  const companyName = safeString(body.companyName, ticker, 120);
+  const sector = safeString(body.sector, 'Unavailable', 80);
+  const language = safeString(body.language, 'English', 40);
+  const price = safeNumber(body.price);
+  const changePercent = safeNumber(body.changePercent);
+  const rsi = safeNumber(body.rsi);
+  const dma50 = safeNumber(body.dma50);
+  const dma200 = safeNumber(body.dma200);
+  const pe = safeNumber(body.pe);
+  const nsePrice = safeNumber(body.nsePrice);
+  const bsePrice = safeNumber(body.bsePrice);
+  const volumeMultiplier = safeNumber(body.volumeMultiplier);
+  const arbitragePercent = safeNumber(body.arbitragePercent);
+  const macdSignal = safeString(body.macd?.signal, 'Unavailable', 30);
+  const userApiKey = safeString(body.userApiKey, '', 300);
+
+  const quoteIsAvailable = price !== undefined && price > 0;
+  const unavailableAnalysis = `### AI analysis unavailable
+
+A configured Gemini model is unavailable or the request failed. This fallback does not generate trade recommendations, target prices, stop-loss levels, sentiment scores, or execution-liquidity claims.
+
+Available request inputs (not independently verified by this endpoint):
+- Ticker: ${ticker} | Company: ${companyName} | Sector: ${sector}
+- Current price: ${price !== undefined ? `₹${price}` : 'N/A'} | Change: ${changePercent !== undefined ? `${changePercent}%` : 'N/A'}
+- RSI(14): ${rsi ?? 'N/A'} | MACD direction: ${macdSignal}
+- 50-day average: ${dma50 !== undefined ? `₹${dma50}` : 'N/A'} | 200-day average: ${dma200 !== undefined ? `₹${dma200}` : 'N/A'}
+- P/E reference: ${pe ?? 'N/A'}
+- NSE/BSE prices: ${nsePrice !== undefined ? `₹${nsePrice}` : 'N/A'} / ${bsePrice !== undefined ? `₹${bsePrice}` : 'N/A'}
+- Cross-provider quote spread: ${arbitragePercent !== undefined ? `${arbitragePercent}%` : 'N/A'}
+
+Market quotes are from a third-party provider, not a verified exchange order book. Verify source timestamps and transaction costs before making investment decisions.`;
+
+  if (!quoteIsAvailable) {
+    return res.json({
       ticker,
-      companyName,
-      sector,
-      price,
-      changePercent,
-      rsi,
-      macd,
-      dma50,
-      dma200,
-      pe,
-      nsePrice,
-      bsePrice,
-      volumeMultiplier,
-      arbitragePercent,
-      language = 'English',
-      userApiKey,
-    } = req.body;
+      analysis: 'A valid current price was not supplied. Refresh market data before requesting a stock-specific analysis.',
+      dataAvailable: false,
+      timestamp: new Date().toISOString(),
+    });
+  }
 
-    const cacheKey = `explain_${ticker}_${language}_${price}_${changePercent}_${rsi}_${dma50}_${dma200}_${arbitragePercent}`;
-    const cached = aiAnalysisCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      return res.json(cached.data);
-    }
+  const cacheKey = [
+    'explain', ticker, language, price, changePercent, rsi, macdSignal,
+    dma50, dma200, pe, nsePrice, bsePrice, volumeMultiplier, arbitragePercent,
+  ].join('_');
+  const cached = aiAnalysisCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now() && cached.data?.dataAvailable !== false) {
+    return res.json(cached.data);
+  }
 
-    const ai = getGeminiClient(userApiKey);
-    if (!ai) {
-      // Deterministic institutional explanation when API key not present
-      const fallbackAnalysis = `### AI analysis unavailable
+  const ai = getGeminiClient(userApiKey);
+  if (!ai) {
+    return res.json({
+      ticker,
+      analysis: unavailableAnalysis,
+      dataAvailable: false,
+      timestamp: new Date().toISOString(),
+    });
+  }
 
-A configured Gemini model is unavailable or the request failed. This fallback does not generate trade recommendations, price targets, stop-loss levels, sentiment scores, or execution-liquidity claims.
-
-Available quote inputs for reference:
-- Ticker: ${ticker || 'N/A'} | Company: ${companyName || 'N/A'}
-- Price: ₹${Number.isFinite(price) ? price : 'N/A'} | Change: ${Number.isFinite(changePercent) ? `${changePercent}%` : 'N/A'}
-- RSI(14): ${Number.isFinite(rsi) ? rsi : 'N/A'}
-- 50-day average: ₹${Number.isFinite(dma50) ? dma50 : 'N/A'} | 200-day average: ₹${Number.isFinite(dma200) ? dma200 : 'N/A'}
-- P/E reference: ${Number.isFinite(pe) ? pe : 'N/A'}
-- Cross-provider quote spread: ${Number.isFinite(arbitragePercent) ? `${arbitragePercent}%` : 'N/A'}
-
-The data provider is third-party and does not provide a verified live order book. Verify source timestamps and transaction costs before making investment decisions.`;
-
-      return res.json({
-        ticker,
-        analysis: fallbackAnalysis,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    const prompt = `
-Analyze the following Indian equity stock traded on the National Stock Exchange (NSE) and Bombay Stock Exchange (BSE):
-- Company: ${companyName} (${ticker})
+  const prompt = `
+Explain this third-party quote snapshot for Indian equity ${companyName} (${ticker}) in ${language}.
+All values below were supplied by the caller and have not been independently verified:
 - Sector: ${sector}
-- Current Market Price: ₹${price} (${changePercent > 0 ? '+' : ''}${changePercent}%)
-- NSE Price: ₹${nsePrice || price} | BSE Price: ₹${bsePrice || price} (Arbitrage Spread: ${arbitragePercent ?? 'Unavailable'}%)
-- Technical Indicators:
-  * RSI (14): ${rsi}
-  * MACD: ${macd?.signal || 'Unavailable'}
-  * 50 DMA: ₹${dma50} | 200 DMA: ₹${dma200}
-  * Volume: ${volumeMultiplier ?? 'Unavailable'}x 20-day average volume
-  * Valuation P/E: ${pe}
+- Price: ₹${price}; daily change: ${changePercent !== undefined ? `${changePercent}%` : 'unavailable'}
+- RSI(14): ${rsi ?? 'unavailable'}
+- MACD direction: ${macdSignal}
+- 50-day and 200-day moving averages: ${dma50 ?? 'unavailable'} and ${dma200 ?? 'unavailable'}
+- P/E reference: ${pe ?? 'unavailable'}
+- NSE/BSE quote values: ${nsePrice ?? 'unavailable'} and ${bsePrice ?? 'unavailable'}
+- Cross-provider price difference: ${arbitragePercent !== undefined ? `${arbitragePercent}%` : 'unavailable'}
+- Volume multiplier: ${volumeMultiplier ?? 'unavailable'}
 
-Language requirement: Please explain the entire analysis in ${language}.
-Provide a structured, institutional analysis with:
-1. Executive Summary: The immediate technical & fundamental setup.
-2. Rule-Based Indicator Validation: What each technical rule confirms or invalidates.
-3. NSE vs BSE Arbitrage / Liquidity Insight.
-4. Macro & Sectoral Tailwinds.
-5. Actionable Trade Setup (Entry, Targets, Stop-loss, Risk-Reward).
+Do not invent current news, macroeconomic catalysts, institutional flows, delivery data, market depth, or trading costs. Do not describe the provider as an official exchange feed. Clearly distinguish observed inputs from interpretation and explain missing fields. If you discuss a possible trade setup, make it conditional and educational, not a recommendation or guarantee. Mention that any price difference is not an executable arbitrage opportunity without synchronized bid/ask quotes, market depth and fees.
 `;
 
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: {
-          systemInstruction:
-            'You are a veteran institutional equity analyst specializing in Indian Capital Markets (NSE & BSE). You provide rigorous, data-backed, objective technical and fundamental trade explanations. Avoid vague platitudes.',
-        },
-      });
-
-      const result = {
-        ticker,
-        analysis: response.text,
-        timestamp: new Date().toISOString(),
-      };
-
-      setBoundedCache(aiAnalysisCache, cacheKey, result, 15 * 60 * 1000);
-      return res.json(result);
-    } catch (apiErr: any) {
-      console.warn(`[AI Engine] Notice in /api/ai/explain: ${apiErr?.message || 'Rate limit/quota limit'}. Serving structured quantitative intelligence.`);
-      const fallbackAnalysis = `### AI analysis unavailable
-
-A configured Gemini model is unavailable or the request failed. This fallback does not generate trade recommendations, price targets, stop-loss levels, sentiment scores, or execution-liquidity claims.
-
-Available quote inputs for reference:
-- Ticker: ${ticker || 'N/A'} | Company: ${companyName || 'N/A'}
-- Price: ₹${Number.isFinite(price) ? price : 'N/A'} | Change: ${Number.isFinite(changePercent) ? `${changePercent}%` : 'N/A'}
-- RSI(14): ${Number.isFinite(rsi) ? rsi : 'N/A'}
-- 50-day average: ₹${Number.isFinite(dma50) ? dma50 : 'N/A'} | 200-day average: ₹${Number.isFinite(dma200) ? dma200 : 'N/A'}
-- P/E reference: ${Number.isFinite(pe) ? pe : 'N/A'}
-- Cross-provider quote spread: ${Number.isFinite(arbitragePercent) ? `${arbitragePercent}%` : 'N/A'}
-
-The data provider is third-party and does not provide a verified live order book. Verify source timestamps and transaction costs before making investment decisions.`;
-
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        systemInstruction: 'You are a cautious Indian equity data-analysis assistant. Use only the supplied values and sound educational explanations. Never invent facts or claim current news/access to exchange order books when none is supplied.',
+      },
+    });
+    if (!response.text) {
       return res.json({
         ticker,
-        analysis: fallbackAnalysis,
+        analysis: unavailableAnalysis,
+        dataAvailable: false,
         timestamp: new Date().toISOString(),
       });
     }
+
+    const result = {
+      ticker,
+      analysis: response.text,
+      dataAvailable: true,
+      timestamp: new Date().toISOString(),
+    };
+    setBoundedCache(aiAnalysisCache, cacheKey, result, 15 * 60 * 1000);
+    return res.json(result);
   } catch (err: any) {
-    console.warn('[AI Service] Non-fatal explain error:', err?.message);
+    console.warn('[AI Analysis] Generation unavailable:', err?.message);
     return res.json({
-      ticker: req.body?.ticker || 'STOCK',
-      analysis: 'AI analysis is unavailable. No trade recommendation or data-backed conclusion was generated.',
+      ticker,
+      analysis: unavailableAnalysis,
+      dataAvailable: false,
       timestamp: new Date().toISOString(),
     });
   }

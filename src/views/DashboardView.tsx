@@ -5,6 +5,8 @@ import { TechnicalChart } from '../components/TechnicalChart';
 import { StockSparkline } from '../components/StockSparkline';
 import { AINewsDigest } from '../components/AINewsDigest';
 import { HourlyTrendIndicator } from '../components/HourlyTrendIndicator';
+import { SectorPerformanceHeatmap } from '../components/SectorPerformanceHeatmap';
+import { MarketNews } from '../components/MarketNews';
 import {
   Sparkles,
   TrendingUp,
@@ -17,6 +19,8 @@ import {
   ChevronRight,
   Activity,
   Gamepad2,
+  Layers,
+  Newspaper,
 } from 'lucide-react';
 
 interface Props {
@@ -41,6 +45,8 @@ export const DashboardView: React.FC<Props> = ({
   customApiKey,
 }) => {
   const [filterSentiment, setFilterSentiment] = useState<'ALL' | 'BULLISH' | 'ARBITRAGE'>('ALL');
+  const [showHeatmap, setShowHeatmap] = useState<boolean>(true);
+  const [newsViewTab, setNewsViewTab] = useState<'MARKET_NEWS' | 'AI_DIGEST'>('MARKET_NEWS');
   const t = translations[language];
 
   // Rank opportunities by AI confidence
@@ -70,7 +76,29 @@ export const DashboardView: React.FC<Props> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={() => {
+              setNewsViewTab('MARKET_NEWS');
+              const el = document.getElementById('market-news-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#D96B43]/40 bg-[#1A1816] text-xs font-semibold text-[#F7EEDB] hover:bg-[#25221F] hover:border-[#D96B43] hover:shadow-[0_0_14px_rgba(217,107,67,0.35)] transition active:scale-95"
+          >
+            <Newspaper className="w-3.5 h-3.5 text-[#D96B43]" />
+            <span>Market News</span>
+          </button>
+          <button
+            onClick={() => setShowHeatmap(!showHeatmap)}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-semibold transition active:scale-95 ${
+              showHeatmap
+                ? 'border-[#D96B43] bg-[#D96B43]/20 text-[#F7EEDB] shadow-[0_0_14px_rgba(217,107,67,0.35)]'
+                : 'border-[#D96B43]/40 bg-[#1A1816] text-[#F7EEDB]/70 hover:bg-[#25221F] hover:text-[#F7EEDB]'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5 text-[#D96B43]" />
+            <span>Sector Heatmap</span>
+          </button>
           <button
             onClick={() => setActiveView('game')}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#22C55E]/40 bg-[#1A1816] text-xs font-semibold text-[#22C55E] hover:bg-[#22C55E]/15 hover:border-[#22C55E] hover:shadow-[0_0_14px_rgba(34,197,94,0.35)] transition active:scale-95"
@@ -145,6 +173,17 @@ export const DashboardView: React.FC<Props> = ({
           })}
         </div>
       </div>
+
+      {/* Visual Sector Performance Heatmap */}
+      {showHeatmap && (
+        <SectorPerformanceHeatmap
+          stocks={stocks}
+          onSelectStock={setSelectedStock}
+          openAIExplanation={openAIExplanation}
+          language={language}
+          onNavigateToSectors={() => setActiveView('sectors')}
+        />
+      )}
 
       {/* Main Grid: Chart & Active Stock Header */}
       <div className="grid lg:grid-cols-3 gap-6">
@@ -261,12 +300,58 @@ export const DashboardView: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* AI News Digest & 1-Sentence Market Impact Section */}
-          <AINewsDigest
-            stock={selectedStock}
-            language={language}
-            customApiKey={customApiKey}
-          />
+          {/* Market News & Company AI Intelligence Section */}
+          <div id="market-news-section" className="space-y-4 pt-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D96B43]/20 pb-3">
+              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#1A1816] border border-[#D96B43]/20 text-xs">
+                <button
+                  onClick={() => setNewsViewTab('MARKET_NEWS')}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-bold transition ${
+                    newsViewTab === 'MARKET_NEWS'
+                      ? 'bg-[#D96B43] text-[#131211] shadow-sm'
+                      : 'text-[#F7EEDB]/60 hover:text-[#F7EEDB]'
+                  }`}
+                >
+                  <Newspaper className="w-3.5 h-3.5" />
+                  <span>Market News (ET · Moneycontrol · Mint · BS)</span>
+                </button>
+
+                <button
+                  onClick={() => setNewsViewTab('AI_DIGEST')}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-bold transition ${
+                    newsViewTab === 'AI_DIGEST'
+                      ? 'bg-[#D96B43] text-[#131211] shadow-sm'
+                      : 'text-[#F7EEDB]/60 hover:text-[#F7EEDB]'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{selectedStock.ticker} AI Catalyst Thesis</span>
+                </button>
+              </div>
+
+              <span className="text-[11px] text-[#F7EEDB]/50 font-mono hidden sm:inline">
+                {newsViewTab === 'MARKET_NEWS'
+                  ? 'Real-time Indian financial headlines'
+                  : `Gemini synthesis for ${selectedStock.ticker}`}
+              </span>
+            </div>
+
+            {newsViewTab === 'MARKET_NEWS' ? (
+              <MarketNews
+                stocks={stocks}
+                selectedStock={selectedStock}
+                onSelectStock={setSelectedStock}
+                openAIExplanation={openAIExplanation}
+                language={language}
+              />
+            ) : (
+              <AINewsDigest
+                stock={selectedStock}
+                language={language}
+                customApiKey={customApiKey}
+              />
+            )}
+          </div>
         </div>
 
         {/* Right 1 Col: AI Confidence Ranked Opportunities & Sparkline Indicators */}

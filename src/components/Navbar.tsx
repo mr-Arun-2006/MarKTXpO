@@ -22,6 +22,9 @@ import {
   ArrowDownRight,
   Coins,
   Gamepad2,
+  UserPlus,
+  Bot,
+  MessageSquare,
 } from 'lucide-react';
 
 interface Props {
@@ -35,6 +38,9 @@ interface Props {
   profile: UserProfile;
   unreadAlertsCount: number;
   openAIExplanation: (stock: StockData) => void;
+  onOpenRegister?: () => void;
+  onOpenChatbot?: () => void;
+  onOpenGoogleChat?: () => void;
 }
 
 export const Navbar: React.FC<Props> = ({
@@ -48,6 +54,9 @@ export const Navbar: React.FC<Props> = ({
   profile,
   unreadAlertsCount,
   openAIExplanation,
+  onOpenRegister,
+  onOpenChatbot,
+  onOpenGoogleChat,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -315,6 +324,42 @@ export const Navbar: React.FC<Props> = ({
             )}
           </button>
 
+          {/* Google Chat Integration Button */}
+          {onOpenGoogleChat && (
+            <button
+              onClick={onOpenGoogleChat}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D96B43]/40 bg-[#1A1816] hover:bg-[#D96B43]/20 hover:border-[#D96B43] text-[#F7EEDB] hover:text-[#FFFDF8] text-xs font-semibold shadow-md shadow-[#D96B43]/10 transition"
+              title="Open Google Chat Market Intelligence Dispatcher"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-[#D96B43]" />
+              <span className="hidden sm:inline">Google Chat</span>
+            </button>
+          )}
+
+          {/* AI Quant Chatbot Button */}
+          {onOpenChatbot && (
+            <button
+              onClick={onOpenChatbot}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D96B43]/40 bg-[#1A1816] hover:bg-[#D96B43]/20 hover:border-[#D96B43] text-[#F7EEDB] hover:text-[#FFFDF8] text-xs font-semibold shadow-md shadow-[#D96B43]/10 transition"
+              title="Open NseBse Gemini Quant Chatbot"
+            >
+              <Bot className="w-3.5 h-3.5 text-[#D96B43]" />
+              <span className="hidden sm:inline">AI Chatbot</span>
+            </button>
+          )}
+
+          {/* Register / Sign In Button */}
+          {onOpenRegister && (
+            <button
+              onClick={onOpenRegister}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#D96B43] to-[#B85D3B] hover:brightness-110 active:scale-95 text-[#131211] font-bold text-xs shadow-md shadow-[#D96B43]/20 transition"
+              title="Register New Trader in Firestore Cloud Database"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Register / Sign In</span>
+            </button>
+          )}
+
           {/* Profile / Settings Button */}
           <button
             onClick={() => setActiveView('profile')}
@@ -366,6 +411,19 @@ export const Navbar: React.FC<Props> = ({
               );
             })}
           </div>
+
+          {onOpenGoogleChat && (
+            <button
+              onClick={() => {
+                onOpenGoogleChat();
+                setMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-xs font-bold text-[#F7EEDB] bg-[#1A1816] border border-[#D96B43]/30 hover:bg-[#D96B43]/20 transition"
+            >
+              <MessageSquare className="w-4 h-4 text-[#D96B43]" />
+              <span>Google Chat Market Dispatcher</span>
+            </button>
+          )}
         </div>
       )}
     </header>

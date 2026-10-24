@@ -17,12 +17,14 @@ import {
   XCircle,
   ChevronRight,
   Gamepad2,
+  UserPlus,
 } from 'lucide-react';
 
 interface Props {
   onLaunchDashboard: () => void;
   onExploreStock: (stock: StockData) => void;
   onPlayGame?: () => void;
+  onRegister?: () => void;
   featuredStocks: StockData[];
   language: SupportedLanguage;
 }
@@ -31,6 +33,7 @@ export const LandingPage: React.FC<Props> = ({
   onLaunchDashboard,
   onExploreStock,
   onPlayGame,
+  onRegister,
   featuredStocks,
   language,
 }) => {
@@ -77,6 +80,16 @@ export const LandingPage: React.FC<Props> = ({
               >
                 <Gamepad2 className="w-4 h-4" />
                 <span>Student Trading Game</span>
+              </button>
+            )}
+
+            {onRegister && (
+              <button
+                onClick={onRegister}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl border border-[#D96B43]/40 bg-[#1A1816] hover:bg-[#D96B43]/20 text-[#D96B43] text-sm font-semibold transition"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Register Free Account</span>
               </button>
             )}
 

@@ -9,7 +9,18 @@ import { INITIAL_STOCKS, INITIAL_ALERTS } from './data/mockMarketData';
 import { Navbar } from './components/Navbar';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { AIExplanationModal } from './components/AIExplanationModal';
-import { AuthModal } from './components/AuthModal';
+import { RegisterUserModal } from './components/RegisterUserModal';
+import { GeminiChatbot } from './components/GeminiChatbot';
+import { ChatbotTrigger } from './components/ChatbotTrigger';
+import { VolatilityAlertToast } from './components/VolatilityAlertToast';
+import { GoogleChatModal } from './components/GoogleChatModal';
+import {
+  calculate14DayAverageRange,
+  computeStockVolatilityMetric,
+  createVolatilityAlert,
+  playVolatilityChime,
+} from './utils/volatilityAlertEngine';
+import { auth, getDbUserProfile, saveDbTradeAlert } from './services/firebase';
 
 // Views
 import { LandingPage } from './views/LandingPage';
@@ -48,6 +59,24 @@ export default function App() {
   // Auth modal state
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
+  // Gemini Chatbot modal state
+  const [chatbotOpen, setChatbotOpen] = useState(false);
+
+  // Google Chat Workspace Integration modal state
+  const [googleChatOpen, setGoogleChatOpen] = useState(false);
+  const [chatShareText, setChatShareText] = useState<string | undefined>(undefined);
+  const [chatTemplate, setChatTemplate] = useState<'ARBITRAGE' | 'SECTOR' | 'VOLATILITY' | 'CUSTOM'>('CUSTOM');
+
+  const handleOpenGoogleChat = (text?: string, template?: 'ARBITRAGE' | 'SECTOR' | 'VOLATILITY' | 'CUSTOM') => {
+    setChatShareText(text);
+    setChatTemplate(template || 'CUSTOM');
+    setGoogleChatOpen(true);
+  };
+
+  // Real-time Volatility Alert state
+  const [activeVolatilityToast, setActiveVolatilityToast] = useState<MarketAlert | null>(null);
+  const triggeredVolatilityTickersRef = React.useRef<Set<string>>(new Set());
+
   // User profile with persistence
   const [profile, setProfile] = useState<UserProfile>(() => {
     try {
@@ -70,6 +99,32 @@ export default function App() {
     if (profile.language && profile.language !== language) {
       setLanguage(profile.language);
     }
+  }, []);
+
+  // Synchronize authenticated user profile from Firestore cloud database
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        const dbProfile = await getDbUserProfile(user.uid);
+        if (dbProfile) {
+          setProfile((prev) => ({
+            ...prev,
+            name: dbProfile.displayName || user.displayName || prev.name,
+            email: dbProfile.email || user.email || prev.email,
+            preferredExchange: (dbProfile.preferredExchange as any) || prev.preferredExchange,
+            language: (dbProfile.language as any) || prev.language,
+          }));
+          if (dbProfile.language) setLanguage(dbProfile.language as any);
+        } else if (user.displayName || user.email) {
+          setProfile((prev) => ({
+            ...prev,
+            name: user.displayName || prev.name,
+            email: user.email || prev.email,
+          }));
+        }
+      }
+    });
+    return () => unsub();
   }, []);
 
   // Fetch real market data from official NSE & BSE feeds via server
@@ -158,7 +213,56 @@ export default function App() {
     setActiveView('backtest');
   };
 
-  // Real-time micro tick variations for continuous live floor feeling
+  // Simulate an intraday volatility surge for live testing
+  const handleSimulateVolatilitySurge = (targetTicker?: string) => {
+    const symbol = targetTicker || (stocks[0] ? stocks[0].ticker : 'RELIANCE');
+    const targetStock = stocks.find((s) => s.ticker === symbol);
+    if (!targetStock) return;
+
+    const avg14 = calculate14DayAverageRange(targetStock.history);
+    const effectiveAvg14 = avg14 > 0 ? avg14 : Math.round(targetStock.currentPrice * 0.018 * 100) / 100;
+    const surgeMultiplier = 1.38; // 38% above 14-day average
+    const targetRange = Math.round(effectiveAvg14 * surgeMultiplier * 100) / 100;
+
+    const basePrice = targetStock.currentPrice;
+    const simulatedHigh = Math.round((basePrice + targetRange * 0.62) * 100) / 100;
+    const simulatedLow = Math.round((basePrice - targetRange * 0.38) * 100) / 100;
+
+    const simulatedStock: StockData = {
+      ...targetStock,
+      high: simulatedHigh,
+      low: simulatedLow,
+    };
+
+    setStocks((prev) =>
+      prev.map((s) => (s.ticker === symbol ? simulatedStock : s))
+    );
+
+    const metric = computeStockVolatilityMetric(simulatedStock, 1.0);
+    const alertObj = createVolatilityAlert(simulatedStock, metric);
+
+    triggeredVolatilityTickersRef.current.add(symbol);
+    setActiveVolatilityToast(alertObj);
+    playVolatilityChime(profile.soundAlerts);
+    setAlerts((curr) => [alertObj, ...curr]);
+
+    if (auth.currentUser) {
+      saveDbTradeAlert({
+        id: alertObj.id,
+        userId: auth.currentUser.uid,
+        ticker: alertObj.ticker,
+        condition: 'VOLATILITY_EXPANSION',
+        threshold: alertObj.targetValue,
+        intradayRange: alertObj.intradayRange,
+        average14DayRange: alertObj.average14DayRange,
+        expansionRatio: alertObj.expansionRatio,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      }).catch(() => {});
+    }
+  };
+
+  // Real-time micro tick variations for continuous live floor feeling & volatility surveillance
   useEffect(() => {
     const timer = setInterval(() => {
       setStocks((prev) => {
@@ -168,7 +272,9 @@ export default function App() {
           indicesToTick.add(Math.floor(Math.random() * prev.length));
         }
 
-        return prev.map((s, idx) => {
+        const newlyTriggered: MarketAlert[] = [];
+
+        const updated = prev.map((s, idx) => {
           if (!indicesToTick.has(idx)) return s;
           const delta = (Math.random() - 0.49) * (s.nsePrice * 0.0003);
           const newNse = Math.round((s.nsePrice + delta) * 100) / 100;
@@ -179,21 +285,63 @@ export default function App() {
           const newHourlyTrend: 'UP' | 'DOWN' | 'NEUTRAL' =
             newHourlyPct > 0.05 ? 'UP' : newHourlyPct < -0.05 ? 'DOWN' : 'NEUTRAL';
 
-          return {
+          // Update real-time intraday high and low as price ticks
+          const updatedHigh = Math.max(s.high || newNse, newNse);
+          const updatedLow = Math.min(s.low || newNse, newNse);
+
+          const updatedStock = {
             ...s,
             nsePrice: newNse,
             bsePrice: newBse,
             currentPrice: newNse,
+            high: updatedHigh,
+            low: updatedLow,
             spreadPercent: spread,
             hourlyChangePercent: newHourlyPct,
             hourlyChange: Math.round(newNse * (newHourlyPct / 100) * 100) / 100,
             hourlyTrend: newHourlyTrend,
           };
+
+          // Check if intraday range exceeds 14-day average range
+          const metric = computeStockVolatilityMetric(updatedStock, 1.0);
+          if (metric.isExceeded && !triggeredVolatilityTickersRef.current.has(s.ticker)) {
+            triggeredVolatilityTickersRef.current.add(s.ticker);
+            const alertObj = createVolatilityAlert(updatedStock, metric);
+            newlyTriggered.push(alertObj);
+          }
+
+          return updatedStock;
         });
+
+        if (newlyTriggered.length > 0) {
+          const firstAlert = newlyTriggered[0];
+          setActiveVolatilityToast(firstAlert);
+          playVolatilityChime(profile.soundAlerts);
+          setAlerts((curr) => [...newlyTriggered, ...curr]);
+
+          if (auth.currentUser) {
+            newlyTriggered.forEach((al) => {
+              saveDbTradeAlert({
+                id: al.id,
+                userId: auth.currentUser!.uid,
+                ticker: al.ticker,
+                condition: 'VOLATILITY_EXPANSION',
+                threshold: al.targetValue,
+                intradayRange: al.intradayRange,
+                average14DayRange: al.average14DayRange,
+                expansionRatio: al.expansionRatio,
+                isActive: true,
+                createdAt: new Date().toISOString(),
+              }).catch(() => {});
+            });
+          }
+        }
+
+        return updated;
       });
     }, 1500);
     return () => clearInterval(timer);
-  }, []);
+  }, [profile.soundAlerts]);
 
   const unreadAlertsCount = alerts.filter((a) => a.triggered).length;
 
@@ -226,6 +374,9 @@ export default function App() {
         profile={profile}
         unreadAlertsCount={unreadAlertsCount}
         openAIExplanation={openAIExplanation}
+        onOpenRegister={() => setAuthModalOpen(true)}
+        onOpenChatbot={() => setChatbotOpen(true)}
+        onOpenGoogleChat={() => handleOpenGoogleChat()}
       />
 
       {/* Active View Router */}
@@ -238,6 +389,7 @@ export default function App() {
               openAIExplanation(st);
             }}
             onPlayGame={() => setActiveView('game')}
+            onRegister={() => setAuthModalOpen(true)}
             featuredStocks={stocks}
             language={language}
           />
@@ -343,6 +495,11 @@ export default function App() {
             soundEnabled={profile.soundAlerts}
             onToggleSound={handleToggleSound}
             language={language}
+            onSelectStock={(st) => {
+              handleSelectStock(st);
+              setActiveView('dashboard');
+            }}
+            onSimulateVolatilitySurge={handleSimulateVolatilitySurge}
           />
         )}
 
@@ -364,6 +521,7 @@ export default function App() {
               setLanguage(lang);
               handleUpdateProfile({ language: lang });
             }}
+            onOpenChatbot={() => setChatbotOpen(true)}
           />
         )}
       </main>
@@ -385,12 +543,65 @@ export default function App() {
         />
       )}
 
-      {/* Auth / Login Modal */}
-      <AuthModal
+      {/* Register New User & Cloud DB Auth Modal */}
+      <RegisterUserModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
-        onLoginSuccess={(u) => handleUpdateProfile(u)}
         language={language}
+        onSuccess={async () => {
+          if (auth.currentUser) {
+            const dbP = await getDbUserProfile(auth.currentUser.uid);
+            if (dbP) {
+              setProfile((prev) => ({
+                ...prev,
+                name: dbP.displayName || prev.name,
+                email: dbP.email || prev.email,
+                preferredExchange: (dbP.preferredExchange as any) || prev.preferredExchange,
+              }));
+            }
+          }
+        }}
+      />
+
+      {/* Floating Chatbot Trigger Button */}
+      <ChatbotTrigger
+        onClick={() => setChatbotOpen(true)}
+        isOpen={chatbotOpen}
+      />
+
+      {/* Multi-turn Gemini AI Chatbot Drawer / Modal */}
+      <GeminiChatbot
+        isOpen={chatbotOpen}
+        onClose={() => setChatbotOpen(false)}
+        language={language}
+        customApiKey={profile.customApiKey}
+        onUpdateApiKey={(key) => handleUpdateProfile({ customApiKey: key })}
+        activeStockTicker={selectedStock?.ticker}
+      />
+
+      {/* Real-Time Volatility Surge Alert In-App Toast */}
+      <VolatilityAlertToast
+        alert={activeVolatilityToast}
+        onDismiss={() => setActiveVolatilityToast(null)}
+        onInspectStock={(ticker) => {
+          const st = stocks.find((s) => s.ticker === ticker);
+          if (st) handleSelectStock(st);
+          setActiveView('dashboard');
+        }}
+        onShareToChat={(al) => {
+          const text = `⚠️ *NseBse Volatility Expansion Alert: ${al.ticker}*\nCompany: ${al.companyName}\nIntraday Range: ₹${(al.intradayRange || al.currentValue).toFixed(2)}\n14-Day Average Range: ₹${(al.average14DayRange || al.targetValue).toFixed(2)}\nExpansion Ratio: *${(al.expansionRatio || 1.1).toFixed(2)}x Baseline*\nTriggered at: ${new Date().toLocaleTimeString('en-IN')}\n\n_Dispatched via NseBse AI Real-Time Surveillance Engine_`;
+          handleOpenGoogleChat(text, 'VOLATILITY');
+        }}
+        soundEnabled={profile.soundAlerts}
+      />
+
+      {/* Google Chat Workspace Integration Modal */}
+      <GoogleChatModal
+        isOpen={googleChatOpen}
+        onClose={() => setGoogleChatOpen(false)}
+        stocks={stocks}
+        initialShareText={chatShareText}
+        initialTemplate={chatTemplate}
       />
     </div>
   );

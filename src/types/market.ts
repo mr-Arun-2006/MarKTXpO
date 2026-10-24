@@ -185,12 +185,15 @@ export interface MarketAlert {
   id: string;
   ticker: string;
   companyName: string;
-  type: 'PRICE_ABOVE' | 'PRICE_BELOW' | 'RSI_OVERSOLD' | 'RSI_OVERBOUGHT' | 'VOLUME_SPIKE' | 'ARBITRAGE_SPREAD' | 'CIRCUIT_BREAKER';
+  type: 'PRICE_ABOVE' | 'PRICE_BELOW' | 'RSI_OVERSOLD' | 'RSI_OVERBOUGHT' | 'VOLUME_SPIKE' | 'ARBITRAGE_SPREAD' | 'CIRCUIT_BREAKER' | 'VOLATILITY_EXPANSION';
   targetValue: number;
   currentValue: number;
   triggered: boolean;
   triggeredAt?: string;
   message: string;
+  intradayRange?: number;
+  average14DayRange?: number;
+  expansionRatio?: number;
 }
 
 export interface PortfolioHolding {

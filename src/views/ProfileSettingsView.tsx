@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserProfile, SupportedLanguage } from '../types/market';
 import { translations } from '../i18n/translations';
 import { PWAInstallButton } from '../components/PWAInstallButton';
@@ -11,13 +11,28 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  Database,
+  LogIn,
+  LogOut,
+  Sparkles,
+  Bot,
+  ShieldCheck,
+  AlertCircle,
 } from 'lucide-react';
+import {
+  auth,
+  signInAsGuest,
+  signInWithGoogle,
+  logOut as fbLogOut,
+  testFirestoreConnection,
+} from '../services/firebase';
 
 interface Props {
   profile: UserProfile;
   onUpdateProfile: (updated: Partial<UserProfile>) => void;
   language: SupportedLanguage;
   setLanguage: (lang: SupportedLanguage) => void;
+  onOpenChatbot?: () => void;
 }
 
 export const ProfileSettingsView: React.FC<Props> = ({
@@ -25,6 +40,7 @@ export const ProfileSettingsView: React.FC<Props> = ({
   onUpdateProfile,
   language,
   setLanguage,
+  onOpenChatbot,
 }) => {
   const t = translations[language];
 
@@ -36,6 +52,111 @@ export const ProfileSettingsView: React.FC<Props> = ({
   const [risk, setRisk] = useState(profile.riskTolerance);
   const [sound, setSound] = useState(profile.soundAlerts);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Key testing state
+  const [testingKey, setTestingKey] = useState(false);
+  const [keyTestResult, setKeyTestResult] = useState<{
+    tested: boolean;
+    valid?: boolean;
+    message?: string;
+  }>({ tested: false });
+  const [selectedTestModel, setSelectedTestModel] = useState('gemini-3.8-flash');
+
+  const handleTestApiKey = async () => {
+    if (!apiKey.trim()) {
+      setKeyTestResult({
+        tested: true,
+        valid: false,
+        message: 'Please enter a Gemini API Key to test.',
+      });
+      return;
+    }
+    setTestingKey(true);
+    setKeyTestResult({ tested: false });
+    try {
+      const res = await fetch('/api/ai/test-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customApiKey: apiKey.trim(),
+          model: selectedTestModel,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.valid) {
+        setKeyTestResult({
+          tested: true,
+          valid: true,
+          message: `Verified! Successfully connected to ${data.modelUsed}.`,
+        });
+      } else {
+        setKeyTestResult({
+          tested: true,
+          valid: false,
+          message: data.error || 'Verification failed. Please check the API key.',
+        });
+      }
+    } catch (e: any) {
+      setKeyTestResult({
+        tested: true,
+        valid: false,
+        message: e?.message || 'Network error verifying key.',
+      });
+    } finally {
+      setTestingKey(false);
+    }
+  };
+
+  const [currentUser, setCurrentUser] = useState(auth.currentUser);
+  const [dbConnected, setDbConnected] = useState<boolean | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setCurrentUser(user);
+      if (user) {
+        if (user.displayName && !name) setName(user.displayName);
+        if (user.email && !email) setEmail(user.email);
+      }
+    });
+    testFirestoreConnection().then((connected) => setDbConnected(connected));
+    return () => unsubscribe();
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setAuthLoading(true);
+      const user = await signInWithGoogle();
+      if (user.displayName) setName(user.displayName);
+      if (user.email) setEmail(user.email);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleGuestSignIn = async () => {
+    try {
+      setAuthLoading(true);
+      await signInAsGuest();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      setAuthLoading(true);
+      await fbLogOut();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   const handleSave = () => {
     onUpdateProfile({
@@ -80,6 +201,90 @@ export const ProfileSettingsView: React.FC<Props> = ({
       </div>
 
       <div className="space-y-6">
+        {/* Cloud Backend Database & Authentication Card */}
+        <div className="p-5 sm:p-6 rounded-2xl bg-[#1A1816] border border-[#22C55E]/30 shadow-xl space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#22C55E]/20 pb-3">
+            <div className="flex items-center gap-2">
+              <Database className="w-4 h-4 text-[#22C55E]" />
+              <h2 className="text-sm font-bold text-[#F7EEDB] uppercase tracking-wider font-mono">
+                Cloud Backend Database &amp; Authentication
+              </h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse"></span>
+              <span className="text-[11px] font-mono text-[#22C55E] font-bold">
+                {dbConnected === false ? 'Offline Local Storage' : 'Google Cloud Firestore Active'}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4 text-xs font-mono">
+            <div className="space-y-1 p-3 rounded-xl bg-[#131211] border border-[#D96B43]/15">
+              <span className="text-[#F7EEDB]/50 block text-[10px]">AUTH SESSION STATUS</span>
+              <div className="text-sm font-bold text-[#F7EEDB]">
+                {currentUser ? (
+                  currentUser.isAnonymous ? (
+                    <span className="text-[#F59E0B]">Guest Anonymous Session</span>
+                  ) : (
+                    <span className="text-[#22C55E]">Google Account Verified</span>
+                  )
+                ) : (
+                  <span className="text-[#F7EEDB]/60">Local Session (Not Authenticated)</span>
+                )}
+              </div>
+              {currentUser && (
+                <div className="text-[10px] text-[#8CB4E0] truncate">
+                  UID: {currentUser.uid}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1 p-3 rounded-xl bg-[#131211] border border-[#D96B43]/15">
+              <span className="text-[#F7EEDB]/50 block text-[10px]">DATABASE ENGINE</span>
+              <div className="text-sm font-bold text-[#F7EEDB]">
+                Firestore NoSQL (Cobalt Plating)
+              </div>
+              <div className="text-[10px] text-[#F7EEDB]/60">
+                Security: Zero-Trust ABAC Rules Active
+              </div>
+            </div>
+          </div>
+
+          {/* Auth Action Buttons */}
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            {!currentUser ? (
+              <>
+                <button
+                  onClick={handleGoogleSignIn}
+                  disabled={authLoading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#25221F] hover:bg-[#2e2a27] border border-[#D96B43]/30 text-xs font-bold text-[#F7EEDB] transition"
+                >
+                  <LogIn className="w-4 h-4 text-[#8CB4E0]" />
+                  <span>Sign In with Google</span>
+                </button>
+
+                <button
+                  onClick={handleGuestSignIn}
+                  disabled={authLoading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#131211] hover:bg-[#25221F] border border-[#D96B43]/20 text-xs font-semibold text-[#F7EEDB]/80 transition"
+                >
+                  <Sparkles className="w-4 h-4 text-[#F59E0B]" />
+                  <span>Sign In as Anonymous Guest</span>
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleSignOut}
+                disabled={authLoading}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#EF4444]/15 hover:bg-[#EF4444]/25 border border-[#EF4444]/40 text-xs font-bold text-[#EF4444] transition"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Disconnect &amp; Sign Out</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* User Identity Section */}
         <div className="p-5 sm:p-6 rounded-2xl bg-[#1A1816] border border-[#D96B43]/20 shadow-xl space-y-4">
           <h2 className="text-sm font-bold text-[#F7EEDB] uppercase tracking-wider font-mono">
@@ -125,21 +330,83 @@ export const ProfileSettingsView: React.FC<Props> = ({
             Provide your personal Gemini API key for private synchronization and customized dashboard insights. If left empty, the application uses the platform's backend model automatically.
           </p>
 
-          <div className="relative">
-            <input
-              type={showKey ? 'text' : 'password'}
-              placeholder="AIzaSy..."
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="w-full pl-3 pr-10 py-2.5 rounded-xl bg-[#131211] border border-[#D96B43]/20 text-xs font-mono text-[#F7EEDB] placeholder-[#F7EEDB]/30 focus:outline-none focus:border-[#D96B43]"
-            />
-            <button
-              type="button"
-              onClick={() => setShowKey(!showKey)}
-              className="absolute right-3 top-3 text-[#F7EEDB]/50 hover:text-[#F7EEDB]"
-            >
-              {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type={showKey ? 'text' : 'password'}
+                  placeholder="AIzaSy... (Paste your Google Gemini API Key)"
+                  value={apiKey}
+                  onChange={(e) => {
+                    setApiKey(e.target.value);
+                    setKeyTestResult({ tested: false });
+                  }}
+                  className="w-full pl-3 pr-10 py-2.5 rounded-xl bg-[#131211] border border-[#D96B43]/20 text-xs font-mono text-[#F7EEDB] placeholder-[#F7EEDB]/30 focus:outline-none focus:border-[#D96B43]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowKey(!showKey)}
+                  className="absolute right-3 top-3 text-[#F7EEDB]/50 hover:text-[#F7EEDB]"
+                >
+                  {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleTestApiKey}
+                disabled={testingKey}
+                className="px-4 py-2.5 rounded-xl bg-[#D96B43] hover:brightness-110 active:scale-95 text-[#131211] font-bold text-xs transition shrink-0 flex items-center gap-1.5 shadow-md shadow-[#D96B43]/20"
+              >
+                {testingKey ? <span className="animate-spin text-sm">⟳</span> : <ShieldCheck className="w-4 h-4" />}
+                <span>Test My AI Key</span>
+              </button>
+            </div>
+
+            {/* Test result status banner */}
+            {keyTestResult.tested && (
+              <div
+                className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
+                  keyTestResult.valid
+                    ? 'bg-[#22C55E]/15 border-[#22C55E]/40 text-[#22C55E]'
+                    : 'bg-[#EF4444]/15 border-[#EF4444]/40 text-[#EF4444]'
+                }`}
+              >
+                {keyTestResult.valid ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                )}
+                <span className="font-medium">{keyTestResult.message}</span>
+              </div>
+            )}
+
+            {/* Target Model Selector */}
+            <div className="pt-2 border-t border-[#D96B43]/15 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-[#F7EEDB]/70 font-semibold text-[11px]">Active Verification Model:</span>
+                <select
+                  value={selectedTestModel}
+                  onChange={(e) => setSelectedTestModel(e.target.value)}
+                  className="px-2.5 py-1 rounded-lg bg-[#131211] border border-[#D96B43]/25 text-xs text-[#F7EEDB] font-mono focus:outline-none"
+                >
+                  <option value="gemini-3.8-flash">gemini-3.8-flash (General)</option>
+                  <option value="gemini-4-argon">gemini-4-argon (Complex Quant)</option>
+                  <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Fast)</option>
+                </select>
+              </div>
+
+              {onOpenChatbot && (
+                <button
+                  type="button"
+                  onClick={onOpenChatbot}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#25221F] hover:bg-[#D96B43]/20 border border-[#D96B43]/30 text-[#F7EEDB] text-xs font-semibold transition"
+                >
+                  <Bot className="w-3.5 h-3.5 text-[#D96B43]" />
+                  <span>Launch AI Chatbot with this Key</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2 text-[11px] text-[#F7EEDB]/60">

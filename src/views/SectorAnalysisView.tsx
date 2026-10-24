@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { SectorIndex, StockData, SupportedLanguage } from '../types/market';
 import { SECTOR_INDICES } from '../data/mockMarketData';
 import { translations } from '../i18n/translations';
+import { SectorPerformanceHeatmap } from '../components/SectorPerformanceHeatmap';
 import {
   Layers,
+  Compass,
+  TableProperties,
 } from 'lucide-react';
 
 interface Props {
@@ -28,20 +31,28 @@ export const SectorAnalysisView: React.FC<Props> = ({
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8 text-[#F7EEDB]">
-      {/* Title */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#D96B43]/15">
+      {/* Visual Sector Performance Heatmap */}
+      <SectorPerformanceHeatmap
+        stocks={stocks}
+        onSelectStock={onSelectStock}
+        openAIExplanation={openAIExplanation}
+        language={language}
+      />
+
+      {/* Title for Rotation Quadrants */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-[#D96B43]/15 pb-2">
         <div>
           <div className="flex items-center gap-2">
-            <Layers className="w-5 h-5 text-[#D96B43]" />
-            <h1 className="text-xl sm:text-2xl font-bold text-[#F7EEDB] tracking-tight">
-              Sector Rotation &amp; Industry Heatmap
-            </h1>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#D96B43]/10 text-[#F7EEDB] border border-[#D96B43]/20 font-bold font-mono">
-              ROTATION QUADRANTS
+            <Compass className="w-5 h-5 text-[#D96B43]" />
+            <h2 className="text-lg sm:text-xl font-bold text-[#F7EEDB] tracking-tight">
+              Institutional Sector Rotation Quadrants
+            </h2>
+            <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[#D96B43]/10 text-[#F7EEDB] border border-[#D96B43]/20 font-bold font-mono">
+              RRG METHODOLOGY
             </span>
           </div>
           <p className="text-xs text-[#F7EEDB]/60 mt-1">
-            Detect institutional capital shifts across Indian banking, IT, energy, automobile, and commodities.
+            Tracking relative strength ratio (RS-Ratio) and relative momentum (RS-Momentum) vs Nifty 50 benchmark.
           </p>
         </div>
 

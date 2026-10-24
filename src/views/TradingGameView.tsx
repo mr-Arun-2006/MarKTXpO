@@ -34,6 +34,7 @@ import {
   playClickSound,
 } from '../utils/soundEffects';
 import jsPDF from 'jspdf';
+import { auth, saveDbGameProgress, getDbGameProgress } from '../services/firebase';
 
 interface Props {
   stocks: StockData[];
@@ -86,6 +87,25 @@ export const TradingGameView: React.FC<Props> = ({ stocks, language, onNavigateT
     setDisplayedCandles(currentLevel.initialCandles);
   }, [currentLevelIdx]);
 
+  // Load cloud progress if user is authenticated
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        const cloudData = await getDbGameProgress(user.uid);
+        if (cloudData) {
+          if (cloudData.totalXP > totalXP) setTotalXP(cloudData.totalXP);
+          if (cloudData.completedLevels) {
+            try {
+              const parsed = JSON.parse(cloudData.completedLevels);
+              setCompletedLevels((prev) => ({ ...prev, ...parsed }));
+            } catch {}
+          }
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
+
   // Persist progress
   const saveProgress = (levelNum: number, stars: number, score: number, xpGained: number) => {
     const updated = {
@@ -99,6 +119,18 @@ export const TradingGameView: React.FC<Props> = ({ stocks, language, onNavigateT
       localStorage.setItem('mxpo_game_progress', JSON.stringify(updated));
       localStorage.setItem('mxpo_game_xp', newXP.toString());
     } catch {}
+
+    if (auth.currentUser) {
+      saveDbGameProgress({
+        id: `progress-${auth.currentUser.uid}`,
+        userId: auth.currentUser.uid,
+        completedLevels: JSON.stringify(updated),
+        totalXP: newXP,
+        currentStreak: 1,
+        highestStreak: 1,
+        updatedAt: new Date().toISOString(),
+      });
+    }
   };
 
   const toggleSound = () => {
@@ -367,6 +399,7 @@ export const TradingGameView: React.FC<Props> = ({ stocks, language, onNavigateT
       {activeTab === 'daily' && (
         <DailyMarketChallenge
           soundEnabled={soundEnabled}
+          onToggleSound={toggleSound}
           onAwardXP={(xp) => {
             setTotalXP((prev) => {
               const updated = prev + xp;

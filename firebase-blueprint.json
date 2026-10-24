@@ -1,0 +1,117 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account profile, role, preferences, and aggregate trading stats.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique user authentication identifier." },
+        "displayName": { "type": "string", "maxLength": 100, "description": "User display name." },
+        "email": { "type": "string", "maxLength": 150, "description": "User email address." },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "Access control role." },
+        "language": { "type": "string", "enum": ["en", "hi", "gu", "ta", "mr", "bn"], "description": "Preferred UI language." },
+        "totalXP": { "type": "number", "description": "Earned trading academy experience points." },
+        "rankTitle": { "type": "string", "maxLength": 100, "description": "Student trader ranking title." },
+        "preferredExchange": { "type": "string", "enum": ["NSE", "BSE", "BOTH"], "description": "Primary preferred exchange." },
+        "experienceLevel": { "type": "string", "maxLength": 50, "description": "Trading experience background." },
+        "virtualCapital": { "type": "number", "description": "Initial virtual trading capital." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Profile creation timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last profile update timestamp." }
+      },
+      "required": ["uid", "role", "totalXP", "createdAt"]
+    },
+    "WatchlistItem": {
+      "title": "WatchlistItem",
+      "description": "Stock saved in user watchlist with custom notes and alert targets.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier of watchlist item." },
+        "userId": { "type": "string", "description": "Owner user identifier." },
+        "ticker": { "type": "string", "maxLength": 20, "description": "NSE/BSE stock ticker symbol." },
+        "stockName": { "type": "string", "maxLength": 100, "description": "Full company name." },
+        "exchange": { "type": "string", "enum": ["NSE", "BSE", "BOTH"], "description": "Primary exchange tracking." },
+        "targetPrice": { "type": "number", "description": "User target price in INR." },
+        "notes": { "type": "string", "maxLength": 500, "description": "Custom trading notes or thesis." },
+        "addedAt": { "type": "string", "format": "date-time", "description": "Timestamp when added." }
+      },
+      "required": ["id", "userId", "ticker", "stockName", "addedAt"]
+    },
+    "PortfolioPosition": {
+      "title": "PortfolioPosition",
+      "description": "User active or historical portfolio investment or paper trade position.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Position record identifier." },
+        "userId": { "type": "string", "description": "Owner user identifier." },
+        "ticker": { "type": "string", "maxLength": 20, "description": "Stock ticker symbol." },
+        "stockName": { "type": "string", "maxLength": 100, "description": "Company name." },
+        "type": { "type": "string", "enum": ["BUY", "SHORT"], "description": "Trade direction." },
+        "shares": { "type": "number", "description": "Number of shares." },
+        "entryPrice": { "type": "number", "description": "Average entry price in INR." },
+        "stopLoss": { "type": "number", "description": "Stop-loss price in INR." },
+        "targetPrice": { "type": "number", "description": "Take-profit price in INR." },
+        "isPaperTrade": { "type": "boolean", "description": "Flag indicating virtual paper simulation trade." },
+        "status": { "type": "string", "enum": ["OPEN", "CLOSED"], "description": "Position lifecycle status." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Position creation timestamp." },
+        "closedAt": { "type": "string", "format": "date-time", "description": "Position exit timestamp." }
+      },
+      "required": ["id", "userId", "ticker", "type", "shares", "entryPrice", "isPaperTrade", "status", "createdAt"]
+    },
+    "TradeAlert": {
+      "title": "TradeAlert",
+      "description": "Price or arbitrage spread notification alert configured by user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Alert unique identifier." },
+        "userId": { "type": "string", "description": "Owner user identifier." },
+        "ticker": { "type": "string", "maxLength": 20, "description": "Stock ticker symbol." },
+        "condition": { "type": "string", "enum": ["ABOVE", "BELOW", "ARBITRAGE_SPREAD", "VOLATILITY_EXPANSION"], "description": "Trigger condition." },
+        "threshold": { "type": "number", "description": "Trigger value in INR, spread percent, or volatility threshold." },
+        "intradayRange": { "type": "number", "description": "Intraday high-low price range in INR." },
+        "average14DayRange": { "type": "number", "description": "14-day average price range in INR." },
+        "expansionRatio": { "type": "number", "description": "Ratio of intraday range to 14-day average." },
+        "isActive": { "type": "boolean", "description": "Whether the alert is active." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when alert was created." }
+      },
+      "required": ["id", "userId", "ticker", "condition", "threshold", "isActive", "createdAt"]
+    },
+    "GameProgress": {
+      "title": "GameProgress",
+      "description": "User trading academy level progression, daily challenge streak, and stats.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Progress record identifier." },
+        "userId": { "type": "string", "description": "User identifier." },
+        "completedLevels": { "type": "string", "maxLength": 4000, "description": "JSON serialized level completions." },
+        "totalXP": { "type": "number", "description": "Total XP points accumulated." },
+        "currentStreak": { "type": "number", "description": "Current consecutive daily challenge streak." },
+        "highestStreak": { "type": "number", "description": "Highest daily challenge streak recorded." },
+        "lastChallengeDate": { "type": "string", "maxLength": 20, "description": "Last completed daily challenge date YYYY-MM-DD." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last sync timestamp." }
+      },
+      "required": ["id", "userId", "totalXP", "currentStreak", "highestStreak", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "UserProfile" },
+      "description": "User account and profile document."
+    },
+    "/users/{userId}/watchlist/{watchlistId}": {
+      "schema": { "$ref": "WatchlistItem" },
+      "description": "User saved stocks and custom target notes."
+    },
+    "/users/{userId}/portfolio/{positionId}": {
+      "schema": { "$ref": "PortfolioPosition" },
+      "description": "User active and closed portfolio and paper trade positions."
+    },
+    "/users/{userId}/alerts/{alertId}": {
+      "schema": { "$ref": "TradeAlert" },
+      "description": "User configured real-time price alerts."
+    },
+    "/users/{userId}/game_progress/{progressId}": {
+      "schema": { "$ref": "GameProgress" },
+      "description": "User trading academy level progression and daily streak record."
+    }
+  }
+}

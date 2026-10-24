@@ -16,19 +16,32 @@ import {
   CheckCircle2,
   XCircle,
   RotateCcw,
-  ShieldCheck,
   Zap,
   ArrowRight,
   BookOpen,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
-import { playSuccessSound, playErrorSound, playLevelUpSound, playClickSound } from '../utils/soundEffects';
+import {
+  playSuccessSound,
+  playPatternSuccessSound,
+  playStreakMilestoneSound,
+  playErrorSound,
+  playLevelUpSound,
+  playClickSound,
+} from '../utils/soundEffects';
 
 interface Props {
-  soundEnabled: boolean;
+  soundEnabled?: boolean;
   onAwardXP: (xp: number) => void;
+  onToggleSound?: () => void;
 }
 
-export const DailyMarketChallenge: React.FC<Props> = ({ soundEnabled, onAwardXP }) => {
+export const DailyMarketChallenge: React.FC<Props> = ({
+  soundEnabled,
+  onAwardXP,
+  onToggleSound,
+}) => {
   const [challenge, setChallenge] = useState<DailyChallenge>(() => getDailyChallenge());
   const [countdown, setCountdown] = useState<string>(getTimeUntilNextDailyChallenge());
 
@@ -56,6 +69,40 @@ export const DailyMarketChallenge: React.FC<Props> = ({ soundEnabled, onAwardXP 
   const [selectedOption, setSelectedOption] = useState<ScenarioOption | null>(null);
   const [revealed, setRevealed] = useState<boolean>(isCompletedToday);
   const [displayedCandles, setDisplayedCandles] = useState<GameCandle[]>(challenge.initialCandles);
+
+  // Local toggleable audio cue state
+  const [internalSoundEnabled, setInternalSoundEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('mxpo_sound_enabled');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const isAudioActive = soundEnabled !== undefined ? soundEnabled : internalSoundEnabled;
+
+  const handleToggleSound = () => {
+    if (onToggleSound) {
+      onToggleSound();
+    } else {
+      const next = !internalSoundEnabled;
+      setInternalSoundEnabled(next);
+      try {
+        localStorage.setItem('mxpo_sound_enabled', next.toString());
+      } catch {}
+      if (next) {
+        playClickSound();
+      }
+    }
+  };
+
+  // Streak milestone celebration toast state
+  const [milestoneEvent, setMilestoneEvent] = useState<{
+    streak: number;
+    title: string;
+    badge: string;
+  } | null>(null);
 
   // Timer countdown updater
   useEffect(() => {
@@ -85,14 +132,19 @@ export const DailyMarketChallenge: React.FC<Props> = ({ soundEnabled, onAwardXP 
   const handleSelectOption = (opt: ScenarioOption) => {
     if (revealed && !isPracticeMode) return;
 
+    // Subtle tactile option click
+    if (isAudioActive) {
+      playClickSound();
+    }
+
     setSelectedOption(opt);
     setRevealed(true);
     setDisplayedCandles([...challenge.initialCandles, ...opt.revealedCandles]);
 
     // If already completed today, this is a practice replay (no new daily score overwrite)
     if (isCompletedToday) {
-      if (soundEnabled) {
-        if (opt.isCorrect) playSuccessSound();
+      if (isAudioActive) {
+        if (opt.isCorrect) playPatternSuccessSound();
         else playErrorSound();
       }
       return;
@@ -143,11 +195,36 @@ export const DailyMarketChallenge: React.FC<Props> = ({ soundEnabled, onAwardXP 
       localStorage.setItem('mxpo_daily_challenge_record', JSON.stringify(updatedRecord));
     } catch {}
 
-    if (soundEnabled) {
+    // Subtle audio cues for pattern identification & streak milestones
+    if (isAudioActive) {
       if (isWin) {
-        playSuccessSound();
-        if (nextStreak > 1) {
-          setTimeout(playLevelUpSound, 400);
+        // 1. Subtle harmonic audio cue for successful pattern recognition
+        playPatternSuccessSound();
+
+        // 2. Celebration fanfare for streak milestones (3 days, 5 days, 7 days, or new record)
+        const isMilestone =
+          nextStreak >= 3 &&
+          (nextStreak === 3 || nextStreak === 5 || nextStreak === 7 || nextStreak % 5 === 0);
+
+        if (isMilestone || nextStreak > record.currentStreak) {
+          const nextStreakInfo = getStreakMultiplier(nextStreak);
+          setMilestoneEvent({
+            streak: nextStreak,
+            title:
+              nextStreak >= 7
+                ? 'Legendary Streak Milestone!'
+                : nextStreak >= 5
+                ? 'Veteran Streak Milestone!'
+                : 'Hot Streak Milestone!',
+            badge: nextStreakInfo.badge,
+          });
+
+          // Play milestone fanfare after the pattern cue finishes
+          setTimeout(() => {
+            playStreakMilestoneSound(nextStreak);
+          }, 360);
+        } else if (nextStreak > 1) {
+          setTimeout(playLevelUpSound, 360);
         }
       } else {
         playErrorSound();
@@ -262,6 +339,29 @@ export const DailyMarketChallenge: React.FC<Props> = ({ soundEnabled, onAwardXP 
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Toggleable Subtle Audio Cues Button */}
+            <button
+              onClick={handleToggleSound}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-mono font-bold transition ${
+                isAudioActive
+                  ? 'bg-[#22C55E]/15 border-[#22C55E]/40 text-[#22C55E] shadow-[0_0_12px_rgba(34,197,94,0.25)]'
+                  : 'bg-[#131211] border-[#D96B43]/20 text-[#F7EEDB]/40 hover:text-[#F7EEDB]'
+              }`}
+              title={
+                isAudioActive
+                  ? 'Gamified Audio Cues: Active (Click to mute)'
+                  : 'Gamified Audio Cues: Muted (Click to enable)'
+              }
+            >
+              {isAudioActive ? (
+                <Volume2 className="w-3.5 h-3.5 text-[#22C55E] animate-pulse" />
+              ) : (
+                <VolumeX className="w-3.5 h-3.5 text-[#F7EEDB]/40" />
+              )}
+              <span className="hidden sm:inline">AUDIO:</span>
+              <span>{isAudioActive ? 'ON' : 'MUTED'}</span>
+            </button>
+
             {isCompletedToday ? (
               <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#22C55E]/15 border border-[#22C55E]/40 text-[#22C55E] text-xs font-mono font-bold">
                 <CheckCircle2 className="w-3.5 h-3.5" /> Scored Today
@@ -284,6 +384,37 @@ export const DailyMarketChallenge: React.FC<Props> = ({ soundEnabled, onAwardXP 
             )}
           </div>
         </div>
+
+        {/* Streak Milestone Celebration Toast / Banner */}
+        {milestoneEvent && (
+          <div className="p-4 rounded-xl bg-gradient-to-r from-[#F59E0B]/20 via-[#D96B43]/20 to-[#22C55E]/20 border border-[#F59E0B]/50 shadow-xl flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-[#F59E0B]/20 text-[#F59E0B]">
+                <Flame className="w-6 h-6 animate-bounce" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#F59E0B]">
+                    🎉 {milestoneEvent.title}
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40">
+                    {milestoneEvent.badge}
+                  </span>
+                </div>
+                <p className="text-xs text-[#F7EEDB] font-medium mt-0.5">
+                  Consecutive {milestoneEvent.streak}-day milestone unlocked! Subtle audio fanfare played and multiplier rewards boosted.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setMilestoneEvent(null)}
+              className="text-[#F7EEDB]/60 hover:text-[#F7EEDB] p-1.5 text-xs rounded-lg hover:bg-[#25221F] transition"
+              title="Dismiss notification"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Market Intelligence Briefing */}
         <div className="p-4 rounded-xl bg-[#131211] border border-[#D96B43]/20">

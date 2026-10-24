@@ -135,3 +135,71 @@ export function playClickSound() {
     osc.stop(now + 0.04);
   } catch {}
 }
+
+/**
+ * Subtle harmonic audio cue for successful candlestick pattern identification
+ * Gentle rising triad (F#5 739.99Hz -> A#5 932.33Hz -> C#6 1108.73Hz)
+ * with a warm envelope and smooth decay.
+ */
+export function playPatternSuccessSound() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    const notes = [
+      { freq: 739.99, time: 0, dur: 0.28 },
+      { freq: 932.33, time: 0.08, dur: 0.32 },
+      { freq: 1108.73, time: 0.16, dur: 0.45 },
+    ];
+
+    notes.forEach(({ freq, time, dur }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + time);
+
+      gain.gain.setValueAtTime(0.12, now + time);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + time + dur);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now + time);
+      osc.stop(now + time + dur);
+    });
+  } catch {}
+}
+
+/**
+ * Gamified celebration fanfare for streak milestones (e.g. 3-day, 5-day, 7-day or higher)
+ * Cascading harmonic pentatonic fanfare with resonant shimmer.
+ */
+export function playStreakMilestoneSound(streak: number = 3) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    const freqs =
+      streak >= 7
+        ? [523.25, 659.25, 783.99, 1046.5, 1318.51]
+        : streak >= 5
+        ? [587.33, 739.99, 880.0, 1174.66]
+        : [659.25, 830.61, 987.77, 1318.51];
+
+    freqs.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = idx === freqs.length - 1 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.09);
+
+      gain.gain.setValueAtTime(0.14, now + idx * 0.09);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.09 + 0.4);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now + idx * 0.09);
+      osc.stop(now + idx * 0.09 + 0.4);
+    });
+  } catch {}
+}

@@ -36,6 +36,27 @@ interface CacheEntry {
 }
 const newsDigestCache = new Map<string, CacheEntry>();
 const aiAnalysisCache = new Map<string, CacheEntry>();
+const MAX_CACHE_ENTRIES = 1_000;
+
+function setBoundedCache(
+  cache: Map<string, CacheEntry>,
+  key: string,
+  data: any,
+  ttlMs: number,
+): void {
+  const now = Date.now();
+  if (cache.size >= MAX_CACHE_ENTRIES && !cache.has(key)) {
+    for (const [storedKey, entry] of cache) {
+      if (entry.expiresAt <= now) cache.delete(storedKey);
+    }
+    // Evict the oldest inserted entry if the cache is still full.
+    if (cache.size >= MAX_CACHE_ENTRIES) {
+      const oldestKey = cache.keys().next().value;
+      if (oldestKey !== undefined) cache.delete(oldestKey);
+    }
+  }
+  cache.set(key, { data, expiresAt: now + ttlMs });
+}
 
 // Best-effort per-process protection. For multi-instance production deployments,
 // use a shared rate-limit store (for example Redis) so limits apply across instances.
@@ -200,7 +221,7 @@ Provide a structured, institutional analysis with:
         timestamp: new Date().toISOString(),
       };
 
-      aiAnalysisCache.set(cacheKey, { data: result, expiresAt: Date.now() + 15 * 60 * 1000 });
+      setBoundedCache(aiAnalysisCache, cacheKey, result, 15 * 60 * 1000);
       return res.json(result);
     } catch (apiErr: any) {
       console.warn(`[AI Engine] Notice in /api/ai/explain: ${apiErr?.message || 'Rate limit/quota limit'}. Serving structured quantitative intelligence.`);
@@ -308,7 +329,7 @@ app.post('/api/ai/news-digest', async (req, res) => {
   const ai = getGeminiClient(userApiKey);
   if (!ai) {
     const curated = getCuratedStockNewsDigest(ticker, companyName, language);
-    newsDigestCache.set(cacheKey, { data: curated, expiresAt: Date.now() + 15 * 60 * 1000 });
+    setBoundedCache(newsDigestCache, cacheKey, curated, 15 * 60 * 1000);
     return res.json(curated);
   }
 
@@ -392,7 +413,7 @@ Return a structured JSON object with this exact schema:
       parsedData = { ...curated, ...parsedData };
     }
 
-    newsDigestCache.set(cacheKey, { data: parsedData, expiresAt: Date.now() + 15 * 60 * 1000 });
+    setBoundedCache(newsDigestCache, cacheKey, parsedData, 15 * 60 * 1000);
     return res.json(parsedData);
   } catch (_generalErr: any) {
     const curated = getCuratedStockNewsDigest(ticker, companyName, language);

@@ -90,7 +90,7 @@ function limitAiRequests(req: express.Request, res: express.Response, next: expr
   if (entry.count >= AI_RATE_LIMIT_MAX_REQUESTS) {
     const retryAfterSeconds = Math.max(1, Math.ceil((entry.resetAt - now) / 1000));
     res.setHeader('Retry-After', String(retryAfterSeconds));
-    return res.status(429).json({ error: 'AI request limit reached. Please retry later.' });
+    return res.status(429).json({ error: 'API request limit reached. Please retry later.' });
   }
 
   entry.count += 1;
@@ -100,6 +100,7 @@ function limitAiRequests(req: express.Request, res: express.Response, next: expr
 // If hosted behind a single trusted platform proxy, req.ip reflects the client IP.
 app.set('trust proxy', 1);
 app.use('/api/ai', limitAiRequests);
+app.use('/api/market', limitAiRequests);
 
 // Helper to instantiate Gemini SDK with proper telemetry headers
 function getGeminiClient(customApiKey?: string) {

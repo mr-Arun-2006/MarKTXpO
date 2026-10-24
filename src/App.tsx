@@ -49,6 +49,7 @@ export default function App() {
   const [lastLiveSync, setLastLiveSync] = useState<string | null>(null);
   const [isLiveOfficial, setIsLiveOfficial] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [isMarketDataUnavailable, setIsMarketDataUnavailable] = useState<boolean>(false);
 
   // Active strategy passed to backtester
   const [activeStrategy, setActiveStrategy] = useState<CustomStrategy | undefined>(undefined);
@@ -134,7 +135,7 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // Fetch real market data from official NSE & BSE feeds via server
+  // Fetch quote and historical data through the configured server API
   const handleRefreshRealData = async () => {
     setIsRefreshing(true);
     try {
@@ -143,6 +144,7 @@ export default function App() {
         setStocks(data.stocks);
         setLastLiveSync(data.timestamp || new Date().toISOString());
         setIsLiveOfficial(data.isLiveOfficial ?? false);
+        setIsMarketDataUnavailable(false);
 
         setSelectedStock((prev) => {
           const match = data.stocks.find((s) => s.ticker === prev.ticker);
@@ -152,9 +154,12 @@ export default function App() {
             history: prev.history && prev.history.length > 0 ? prev.history : match.history,
           };
         });
+      } else {
+        setIsMarketDataUnavailable(true);
       }
     } catch (err) {
-      console.warn('[App] Real market refresh notice:', err);
+      setIsMarketDataUnavailable(true);
+      console.warn('[App] Market data refresh failed:', err);
     } finally {
       setIsRefreshing(false);
     }
@@ -279,9 +284,10 @@ export default function App() {
       {/* Offline Toast Indicator */}
       <OfflineIndicator />
 
-      {/* Official Exchange Verification & Live Provenance Banner */}
+      {/* Market data connection and provenance banner */}
       <OfficialMarketBanner
         isLiveOfficial={isLiveOfficial}
+        isUnavailable={isMarketDataUnavailable}
         lastLiveSync={lastLiveSync}
         onRefresh={handleRefreshRealData}
         isRefreshing={isRefreshing}

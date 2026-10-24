@@ -103,7 +103,10 @@ app.use('/api/ai', limitAiRequests);
 
 // Helper to instantiate Gemini SDK with proper telemetry headers
 function getGeminiClient(customApiKey?: string) {
-  const apiKey = customApiKey?.trim() || process.env.GEMINI_API_KEY;
+  const suppliedKey = typeof customApiKey === 'string' ? customApiKey.trim() : '';
+  if (suppliedKey.length > 300) return null;
+
+  const apiKey = suppliedKey || process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === 'MY_GEMINI_API_KEY' || apiKey.startsWith('MY_')) return null;
   return new GoogleGenAI({
     apiKey,
@@ -311,10 +314,11 @@ Return JSON with: sentimentScore (-100 to 100), sentimentLabel (Very Bullish/Bul
 
 // 3. AI News Digest Endpoint with Google Search Grounding & 1-sentence market impact
 app.post('/api/ai/news-digest', async (req, res) => {
-  const ticker = (req.body.ticker || 'STOCK').toUpperCase();
-  const companyName = req.body.companyName || ticker;
-  const language = req.body.language || 'English';
-  const userApiKey = req.body.userApiKey;
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const ticker = (typeof body.ticker === 'string' ? body.ticker : 'STOCK').trim().slice(0, 20).toUpperCase() || 'STOCK';
+  const companyName = (typeof body.companyName === 'string' ? body.companyName : ticker).trim().slice(0, 120) || ticker;
+  const language = (typeof body.language === 'string' ? body.language : 'English').trim().slice(0, 40) || 'English';
+  const userApiKey = typeof body.userApiKey === 'string' ? body.userApiKey : undefined;
 
   // 1. Check in-memory cache first to avoid repetitive API calls and rate-limiting
   const cacheKey = `news_${ticker}_${language}`;
@@ -331,7 +335,7 @@ app.post('/api/ai/news-digest', async (req, res) => {
   try {
     const prompt = `
 Find the latest financial news, quarterly earnings, corporate developments, and market events for Indian equity: ${companyName} (${ticker}), listed on NSE and BSE.
-Gather recent relevant news headlines and market reports using your Google Search tool.
+Use Google Search grounding where available. Return only headlines with actual source URLs surfaced by grounding. Do not create article titles, source names, publication times, or factual claims when sources are unavailable.
 Return a structured JSON object with this exact schema:
 {
   "ticker": "${ticker}",

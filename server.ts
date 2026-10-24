@@ -322,15 +322,13 @@ app.post('/api/ai/news-digest', async (req, res) => {
   // 1. Check in-memory cache first to avoid repetitive API calls and rate-limiting
   const cacheKey = `news_${ticker}_${language}`;
   const cached = newsDigestCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) {
+  if (cached && cached.expiresAt > Date.now() && cached.data?.dataAvailable !== false) {
     return res.json(cached.data);
   }
 
   const ai = getGeminiClient(userApiKey);
   if (!ai) {
-    const curated = getCuratedStockNewsDigest(ticker, companyName, language);
-    setBoundedCache(newsDigestCache, cacheKey, curated, 15 * 60 * 1000);
-    return res.json(curated);
+    return res.json(getCuratedStockNewsDigest(ticker, companyName, language));
   }
 
   try {
@@ -385,7 +383,6 @@ Return a structured JSON object with this exact schema:
 
     if (!response || !response.text) {
       const curated = getCuratedStockNewsDigest(ticker, companyName, language);
-      newsDigestCache.set(cacheKey, { data: curated, expiresAt: Date.now() + 15 * 60 * 1000 });
       return res.json(curated);
     }
 
@@ -408,17 +405,20 @@ Return a structured JSON object with this exact schema:
         .filter((s: any) => s.url);
     }
 
-    if (!parsedData.oneSentenceImpact || !parsedData.headlines?.length) {
-      const curated = getCuratedStockNewsDigest(ticker, companyName, language);
-      parsedData = { ...curated, ...parsedData };
+    // A current-news result is only considered available when headlines and
+    // source URLs are present. Do not merge ungrounded model prose into a fallback.
+    if (!parsedData.oneSentenceImpact || !Array.isArray(parsedData.headlines) ||
+        parsedData.headlines.length === 0 || !Array.isArray(parsedData.sources) ||
+        parsedData.sources.length === 0) {
+      return res.json(getCuratedStockNewsDigest(ticker, companyName, language));
     }
 
+    parsedData.dataAvailable = true;
+    parsedData.dataStatus = 'GROUNDED_NEWS';
     setBoundedCache(newsDigestCache, cacheKey, parsedData, 15 * 60 * 1000);
     return res.json(parsedData);
   } catch (_generalErr: any) {
-    const curated = getCuratedStockNewsDigest(ticker, companyName, language);
-    newsDigestCache.set(cacheKey, { data: curated, expiresAt: Date.now() + 15 * 60 * 1000 });
-    return res.json(curated);
+    return res.json(getCuratedStockNewsDigest(ticker, companyName, language));
   }
 });
 

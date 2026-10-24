@@ -1133,9 +1133,9 @@ app.get('/api/market/benchmarks', async (req, res) => {
   }
 });
 
-app.get('/api/market/history/:ticker', async (req, res) => {
+app.get('/api/market/history', async (req, res) => {
   try {
-    const ticker = (req.params.ticker || 'RELIANCE').toUpperCase();
+    const ticker = (typeof req.query.ticker === 'string' ? req.query.ticker : 'RELIANCE').toUpperCase();
     const range = (req.query.range as string) || '3mo';
     const interval = (req.query.interval as string) || '1d';
     const allowedRanges = new Set(['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']);

@@ -1,4 +1,5 @@
-// Vercel routes this endpoint to the shared Express application.
+// Normalize Vercel's function-relative URL before dispatching to Express.
 import app from '../../server.ts';
+import { createVercelExpressHandler } from '../../src/lib/vercelExpressHandler.ts';
 
-export default app;
+export default createVercelExpressHandler(app, '/api/market/benchmarks');

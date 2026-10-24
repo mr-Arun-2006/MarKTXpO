@@ -178,14 +178,14 @@ export const CompareView: React.FC<Props> = ({
               <div className="p-3 rounded-xl bg-[#131211] border border-[#D96B43]/15">
                 <span className="text-[#F7EEDB]/50">Upper Circuit (+10%)</span>
                 <div className="text-sm font-bold text-[#F7EEDB] font-mono mt-0.5">
-                  ₹{selectedStock.upperCircuit.toFixed(2)}
+                  {selectedStock.upperCircuit != null ? `₹${selectedStock.upperCircuit.toFixed(2)}` : 'N/A'}
                 </div>
               </div>
 
               <div className="p-3 rounded-xl bg-[#131211] border border-[#D96B43]/15">
                 <span className="text-[#F7EEDB]/50">Lower Circuit (-10%)</span>
                 <div className="text-sm font-bold text-[#EF4444] font-mono mt-0.5">
-                  ₹{selectedStock.lowerCircuit.toFixed(2)}
+                  {selectedStock.lowerCircuit != null ? `₹${selectedStock.lowerCircuit.toFixed(2)}` : 'N/A'}
                 </div>
               </div>
             </div>

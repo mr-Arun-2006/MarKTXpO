@@ -8,6 +8,7 @@ import {
 
 interface Props {
   isLiveOfficial: boolean;
+  isUnavailable: boolean;
   lastLiveSync: string | null;
   onRefresh: () => Promise<void>;
   isRefreshing: boolean;
@@ -16,6 +17,7 @@ interface Props {
 
 export const OfficialMarketBanner: React.FC<Props> = ({
   isLiveOfficial,
+  isUnavailable,
   lastLiveSync,
   onRefresh,
   isRefreshing,
@@ -37,13 +39,13 @@ export const OfficialMarketBanner: React.FC<Props> = ({
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2.5">
         {/* Left: Verification status */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border font-mono font-bold text-[11px] ${!lastLiveSync ? 'bg-[#F7EEDB]/10 border-[#F7EEDB]/20 text-[#F7EEDB]/70' : isLiveOfficial ? 'bg-[#22C55E]/15 border-[#22C55E]/40 text-[#22C55E]' : 'bg-[#D96B43]/15 border-[#D96B43]/40 text-[#D96B43]'}`}>
-            <span className={`w-2 h-2 rounded-full ${!lastLiveSync ? 'bg-[#F7EEDB]/50' : isLiveOfficial ? 'bg-[#22C55E]' : 'bg-[#D96B43]'}`} />
-            <span>{!lastLiveSync ? 'CONNECTING TO MARKET DATA' : isLiveOfficial ? 'VERIFIED OFFICIAL DATA' : 'THIRD-PARTY MARKET DATA'}</span>
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border font-mono font-bold text-[11px] ${isUnavailable ? 'bg-[#EF4444]/15 border-[#EF4444]/40 text-[#EF4444]' : !lastLiveSync ? 'bg-[#F7EEDB]/10 border-[#F7EEDB]/20 text-[#F7EEDB]/70' : isLiveOfficial ? 'bg-[#22C55E]/15 border-[#22C55E]/40 text-[#22C55E]' : 'bg-[#D96B43]/15 border-[#D96B43]/40 text-[#D96B43]'}`}>
+            <span className={`w-2 h-2 rounded-full ${isUnavailable ? 'bg-[#EF4444]' : !lastLiveSync ? 'bg-[#F7EEDB]/50' : isLiveOfficial ? 'bg-[#22C55E]' : 'bg-[#D96B43]'}`} />
+            <span>{isUnavailable ? 'MARKET DATA UNAVAILABLE' : !lastLiveSync ? 'CONNECTING TO MARKET DATA' : isLiveOfficial ? 'VERIFIED OFFICIAL DATA' : 'THIRD-PARTY MARKET DATA'}</span>
           </div>
 
           <div className="flex items-center gap-1.5 text-[11px] text-[#F7EEDB]/80">
-            <span className="font-semibold text-[#8CB4E0]">{!lastLiveSync ? 'Waiting for the quote service' : isLiveOfficial ? 'Official source verified' : 'Yahoo Finance quote/history data'}</span>
+            <span className="font-semibold text-[#8CB4E0]">{isUnavailable ? 'The quote API failed or returned no verified quotes' : !lastLiveSync ? 'Waiting for the quote service' : isLiveOfficial ? 'Official source verified' : 'Yahoo Finance quote/history data'}</span>
             <span className="text-[#F7EEDB]/40">•</span>
             <span className="hidden sm:inline text-[#F7EEDB]/60">some supplementary fields are unavailable or estimates</span>
             <span className="text-[#F7EEDB]/40">•</span>

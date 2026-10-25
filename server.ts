@@ -782,6 +782,74 @@ self.addEventListener('activate', function(event) {
 });
 `;
 
+const VITE_CLIENT_NOOP_MODULE = `
+const sheetsMap = new Map();
+export function updateStyle(id, content) {
+  if (typeof document === "undefined") return;
+  let style = sheetsMap.get(id);
+  if (!style) {
+    style = document.createElement("style");
+    style.setAttribute("type", "text/css");
+    style.setAttribute("data-vite-dev-id", id);
+    style.textContent = content;
+    document.head.appendChild(style);
+  } else {
+    style.textContent = content;
+  }
+  sheetsMap.set(id, style);
+}
+export function removeStyle(id) {
+  const style = sheetsMap.get(id);
+  if (style && style.parentNode) {
+    style.parentNode.removeChild(style);
+    sheetsMap.delete(id);
+  }
+}
+export function createHotContext(ownerPath) {
+  return {
+    data: {},
+    accept() {},
+    acceptExports() {},
+    dispose() {},
+    prune() {},
+    decline() {},
+    invalidate() {},
+    on() {},
+    off() {},
+    send() {},
+    ownerPath,
+  };
+}
+export function injectQuery(url) { return url; }
+const BaseHTMLElement = typeof HTMLElement !== "undefined" ? HTMLElement : class {};
+export class ErrorOverlay extends BaseHTMLElement { close() {} }
+`;
+
+app.get('/api/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'MarKtXPO Indian Equity Intelligence',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get(['/@vite/client', '/node_modules/vite/dist/client/client.mjs'], (_req, res) => {
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.send(VITE_CLIENT_NOOP_MODULE);
+});
+
+app.get('/@react-refresh', (_req, res) => {
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.send(`
+export function injectIntoGlobalHook() {}
+export function register() {}
+export function createSignatureFunctionForTransform() { return (type) => type; }
+export default { injectIntoGlobalHook, register, createSignatureFunctionForTransform };
+`);
+});
+
 app.get('/registerSW.js', (_req, res) => {
   res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -825,7 +893,7 @@ if (process.env.VERCEL !== '1') {
   if (process.env.NODE_ENV === 'production' || hasDist) {
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      if (req.path.startsWith('/assets/')) {
+      if (req.path.startsWith('/assets/') || req.path.startsWith('/node_modules/') || req.path.startsWith('/src/')) {
         return res.status(404).end();
       }
       res.sendFile(path.join(distPath, 'index.html'));

@@ -20,7 +20,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import {
-  auth,
+  getActiveUser,
+  subscribeToAuth,
   signInAsGuest,
   signInWithGoogle,
   logOut as fbLogOut,
@@ -107,16 +108,16 @@ export const ProfileSettingsView: React.FC<Props> = ({
     }
   };
 
-  const [currentUser, setCurrentUser] = useState(auth.currentUser);
+  const [currentUser, setCurrentUser] = useState(getActiveUser());
   const [dbConnected, setDbConnected] = useState<boolean | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = subscribeToAuth((user) => {
       setCurrentUser(user);
       if (user) {
-        if (user.displayName && !name) setName(user.displayName);
-        if (user.email && !email) setEmail(user.email);
+        if (user.displayName) setName(user.displayName);
+        if (user.email) setEmail(user.email);
       }
     });
     testFirestoreConnection().then((connected) => setDbConnected(connected));
@@ -139,7 +140,8 @@ export const ProfileSettingsView: React.FC<Props> = ({
   const handleGuestSignIn = async () => {
     try {
       setAuthLoading(true);
-      await signInAsGuest();
+      const user = await signInAsGuest();
+      if (user.displayName) setName(user.displayName);
     } catch (e) {
       console.error(e);
     } finally {
@@ -151,6 +153,7 @@ export const ProfileSettingsView: React.FC<Props> = ({
     try {
       setAuthLoading(true);
       await fbLogOut();
+      setCurrentUser(null);
     } catch (e) {
       console.error(e);
     } finally {

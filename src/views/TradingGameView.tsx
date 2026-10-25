@@ -34,7 +34,7 @@ import {
   playClickSound,
 } from '../utils/soundEffects';
 import jsPDF from 'jspdf';
-import { auth, saveDbGameProgress, getDbGameProgress } from '../services/firebase';
+import { getActiveUser, subscribeToAuth, saveDbGameProgress, getDbGameProgress } from '../services/firebase';
 
 interface Props {
   stocks: StockData[];
@@ -89,7 +89,7 @@ export const TradingGameView: React.FC<Props> = ({ stocks, language, onNavigateT
 
   // Load cloud progress if user is authenticated
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged(async (user) => {
+    const unsub = subscribeToAuth(async (user) => {
       if (user) {
         const cloudData = await getDbGameProgress(user.uid);
         if (cloudData) {
@@ -120,10 +120,11 @@ export const TradingGameView: React.FC<Props> = ({ stocks, language, onNavigateT
       localStorage.setItem('mxpo_game_xp', newXP.toString());
     } catch {}
 
-    if (auth.currentUser) {
+    const activeUser = getActiveUser();
+    if (activeUser) {
       saveDbGameProgress({
-        id: `progress-${auth.currentUser.uid}`,
-        userId: auth.currentUser.uid,
+        id: `progress-${activeUser.uid}`,
+        userId: activeUser.uid,
         completedLevels: JSON.stringify(updated),
         totalXP: newXP,
         currentStreak: 1,

@@ -4,91 +4,22 @@
     <meta charset="UTF-8" />
     <script>
       (function() {
-        // 1. Shim Vite HMR WebSocket connection so disabled HMR never errors or rejects
-        var NativeWebSocket = window.WebSocket;
-        if (NativeWebSocket) {
-          function ViteHmrMockSocket(url, protocols) {
-            var isViteHmr = (protocols === 'vite-hmr' || (Array.isArray(protocols) && protocols.indexOf('vite-hmr') !== -1) || (typeof url === 'string' && url.indexOf('token=') !== -1));
-            if (!isViteHmr) {
-              return new NativeWebSocket(url, protocols);
-            }
-            var target = new EventTarget();
-            this.url = url;
-            this.protocol = 'vite-hmr';
-            this.CONNECTING = 0;
-            this.OPEN = 1;
-            this.CLOSING = 2;
-            this.CLOSED = 3;
-            this.readyState = 1; // WebSocket.OPEN
-            this.binaryType = 'blob';
-            this.bufferedAmount = 0;
-            this.extensions = '';
-            this.send = function() {};
-            this.close = function() { this.readyState = 3; };
-            this.addEventListener = target.addEventListener.bind(target);
-            this.removeEventListener = target.removeEventListener.bind(target);
-            this.dispatchEvent = target.dispatchEvent.bind(target);
-            var self = this;
-            setTimeout(function() {
-              var openEvent = new Event('open');
-              self.dispatchEvent(openEvent);
-              if (typeof self.onopen === 'function') self.onopen(openEvent);
-            }, 0);
+        try {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              for (var i = 0; i < regs.length; i++) {
+                regs[i].unregister();
+              }
+            }).catch(function() {});
           }
-          ViteHmrMockSocket.CONNECTING = 0;
-          ViteHmrMockSocket.OPEN = 1;
-          ViteHmrMockSocket.CLOSING = 2;
-          ViteHmrMockSocket.CLOSED = 3;
-          ViteHmrMockSocket.prototype = NativeWebSocket.prototype;
-          window.WebSocket = ViteHmrMockSocket;
-        }
-
-        // 2. Filter console errors and warnings for disabled WebSocket/HMR noise
-        var origConsoleError = console.error;
-        console.error = function() {
-          var args = Array.prototype.slice.call(arguments);
-          var msg = args.map(function(a) { return (a && a.message) || String(a); }).join(' ');
-          if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('vite') !== -1 || msg.indexOf('preamble') !== -1) {
-            return;
+          if ('caches' in window) {
+            caches.keys().then(function(keys) {
+              for (var j = 0; j < keys.length; j++) {
+                caches.delete(keys[j]);
+              }
+            }).catch(function() {});
           }
-          origConsoleError.apply(console, arguments);
-        };
-
-        var origConsoleWarn = console.warn;
-        console.warn = function() {
-          var args = Array.prototype.slice.call(arguments);
-          var msg = args.map(function(a) { return (a && a.message) || String(a); }).join(' ');
-          if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('vite') !== -1 || msg.indexOf('preamble') !== -1) {
-            return;
-          }
-          origConsoleWarn.apply(console, arguments);
-        };
-
-        // 3. Synchronously initialize React Refresh preamble for Vite plugin-react
-        window.$RefreshReg$ = window.$RefreshReg$ || function() {};
-        window.$RefreshSig$ = window.$RefreshSig$ || function() { return function(type) { return type; }; };
-        window.__vite_plugin_react_preamble_installed__ = true;
-        if (typeof globalThis !== 'undefined') {
-          globalThis.__vite_plugin_react_preamble_installed__ = true;
-          globalThis.$RefreshReg$ = globalThis.$RefreshReg$ || function() {};
-          globalThis.$RefreshSig$ = globalThis.$RefreshSig$ || function() { return function(type) { return type; }; };
-        }
-
-        // 4. Global window error & rejection handlers
-        window.addEventListener('error', function(e) {
-          var msg = (e && (e.message || (e.error && e.error.message))) || '';
-          if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('ws://') !== -1 || msg.indexOf('wss://') !== -1 || msg.indexOf('preamble') !== -1 || msg.indexOf('Refresh') !== -1 || msg.indexOf('vite') !== -1) {
-            e.stopImmediatePropagation();
-            e.preventDefault();
-          }
-        }, true);
-        window.addEventListener('unhandledrejection', function(e) {
-          var msg = (e && e.reason && (e.reason.message || String(e.reason))) || '';
-          if (msg.indexOf('WebSocket') !== -1 || msg.indexOf('ws://') !== -1 || msg.indexOf('wss://') !== -1 || msg.indexOf('preamble') !== -1 || msg.indexOf('Refresh') !== -1 || msg.indexOf('vite') !== -1) {
-            e.stopImmediatePropagation();
-            e.preventDefault();
-          }
-        }, true);
+        } catch (e) {}
       })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />

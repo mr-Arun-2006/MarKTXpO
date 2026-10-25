@@ -81,7 +81,7 @@ export const RegisterUserModal: React.FC<Props> = ({
         };
 
         await registerNewUser(input);
-        setSuccessMsg('Account registered successfully! Firestore cloud database initialized with +100 bonus XP.');
+        setSuccessMsg('Account registered! Trader profile, starter watchlists & +100 bonus XP provisioned.');
       } else {
         if (!email || !password) {
           setErrorMsg('Please enter both email and password.');
@@ -89,13 +89,13 @@ export const RegisterUserModal: React.FC<Props> = ({
           return;
         }
         await loginWithEmail(email.trim(), password);
-        setSuccessMsg('Signed in successfully! Synced with Firestore database.');
+        setSuccessMsg('Signed in successfully! Trader profile & watchlists synced.');
       }
 
       setTimeout(() => {
         if (onSuccess) onSuccess();
         onClose();
-      }, 1200);
+      }, 1000);
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/email-already-in-use') {
@@ -103,7 +103,7 @@ export const RegisterUserModal: React.FC<Props> = ({
       } else if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setErrorMsg('Incorrect email or password. Please verify and try again.');
       } else {
-        setErrorMsg(err.message || 'Operation failed. Please check network connection.');
+        setErrorMsg(err.message || 'Authentication failed. Try Google Account Sign-In below.');
       }
     } finally {
       setLoading(false);
@@ -114,12 +114,19 @@ export const RegisterUserModal: React.FC<Props> = ({
     try {
       setLoading(true);
       setErrorMsg(null);
-      await signInWithGoogle();
-      setSuccessMsg('Authenticated with Google! User profile synced.');
+      await signInWithGoogle({
+        displayName: displayName.trim() || undefined,
+        email: email.trim() || undefined,
+        preferredExchange,
+        experienceLevel,
+        language,
+        virtualCapital,
+      });
+      setSuccessMsg('Authenticated with Google! Firestore & Cloud SQL profile synced with +100 XP.');
       setTimeout(() => {
         if (onSuccess) onSuccess();
         onClose();
-      }, 1000);
+      }, 900);
     } catch (err: any) {
       setErrorMsg(err.message || 'Google sign-in cancelled.');
     } finally {
@@ -132,11 +139,11 @@ export const RegisterUserModal: React.FC<Props> = ({
       setLoading(true);
       setErrorMsg(null);
       await signInAsGuest();
-      setSuccessMsg('Guest session initiated. Temporary cloud database attached.');
+      setSuccessMsg('Guest Sandbox session initiated with starter watchlists & ₹10L virtual capital.');
       setTimeout(() => {
         if (onSuccess) onSuccess();
         onClose();
-      }, 1000);
+      }, 900);
     } catch (err: any) {
       setErrorMsg(err.message || 'Guest login failed.');
     } finally {

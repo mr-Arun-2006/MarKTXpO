@@ -10,7 +10,7 @@ import {
   getRealBenchmarks,
   getRealStockHistory,
 } from './src/services/realMarketData.ts';
-import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
+import { requireAuth, type AuthRequest } from './src/middleware/auth.ts';
 import {
   getOrCreateUser,
   getUserWatchlist,
@@ -767,12 +767,67 @@ if (process.env.VERCEL !== '1') {
 const distPath = path.join(__dirname, 'dist');
 const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
 
+const QUIET_UNREGISTER_SW = `
+self.addEventListener('install', function() {
+  self.skipWaiting();
+});
+self.addEventListener('activate', function(event) {
+  event.waitUntil(
+    caches.keys().then(function(keys) {
+      return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+    }).then(function() {
+      return self.registration.unregister();
+    })
+  );
+});
+`;
+
+app.get('/registerSW.js', (_req, res) => {
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.send('// Service worker registration disabled');
+});
+
+app.get(['/sw.js', '/workbox-*.js'], (_req, res) => {
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.send(QUIET_UNREGISTER_SW);
+});
+
+app.get('/assets/:file', (req, res, next) => {
+  const file = req.params.file;
+  const exactPath = path.join(distPath, 'assets', file);
+  if (fs.existsSync(exactPath)) {
+    return res.sendFile(exactPath);
+  }
+  if (/^index-[A-Za-z0-9_-]+\.js$/.test(file)) {
+    const currentJs = path.join(distPath, 'assets', 'index.js');
+    if (fs.existsSync(currentJs)) {
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
+      return res.sendFile(currentJs);
+    }
+  }
+  if (/^index-[A-Za-z0-9_-]+\.css$/.test(file)) {
+    const currentCss = path.join(distPath, 'assets', 'index.css');
+    if (fs.existsSync(currentCss)) {
+      res.setHeader('Content-Type', 'text/css; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
+      return res.sendFile(currentCss);
+    }
+  }
+  next();
+});
+
 // Export the Express app for Vercel's catch-all function. Traditional Node
 // deployments keep the existing static/Vite setup and listen on PORT.
 if (process.env.VERCEL !== '1') {
   if (process.env.NODE_ENV === 'production' || hasDist) {
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
+      if (req.path.startsWith('/assets/')) {
+        return res.status(404).end();
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   } else {

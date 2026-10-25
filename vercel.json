@@ -1,12 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "installCommand": "bun install --frozen-lockfile",
+  "installCommand": "bun install",
   "buildCommand": "bun run build",
   "outputDirectory": "dist",
   "functions": {
     "api/**/*.ts": {
-      "runtime": "@vercel/node@5.1.8"
+      "maxDuration": 30
     }
   }
 }

@@ -1,24 +1,18 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import { registerSW } from 'virtual:pwa-register';
 import App from './App.tsx';
 import './index.css';
 
-// Unregister any stale service workers that may intercept preview iframe requests
-if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-  navigator.serviceWorker
-    .getRegistrations()
-    .then((registrations) => {
-      for (const registration of registrations) {
-        registration.unregister().catch(() => {});
-      }
-    })
-    .catch(() => {});
-  if ('caches' in window) {
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
-      .catch(() => {});
-  }
+// Register PWA Service Worker for standalone installation and offline caching
+try {
+  registerSW({
+    immediate: true,
+    onRegisteredSW() {},
+    onRegisterError() {},
+  });
+} catch {
+  // Non-fatal in restricted iframe contexts
 }
 
 class RootErrorBoundary extends React.Component<
@@ -37,7 +31,7 @@ class RootErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-[#131211] text-[#F7EEDB] flex items-center justify-center p-6">
+        <div className="min-h-[100dvh] w-full bg-[#131211] text-[#F7EEDB] flex items-center justify-center p-6">
           <div className="max-w-md w-full rounded-2xl bg-[#1A1816] border border-[#D96B43]/30 p-6 space-y-4 shadow-2xl">
             <h2 className="text-lg font-bold text-[#D96B43]">Terminal Recovery Mode</h2>
             <p className="text-xs text-[#F7EEDB]/70 font-mono break-words">

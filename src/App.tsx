@@ -14,6 +14,7 @@ import { GeminiChatbot } from './components/GeminiChatbot';
 import { ChatbotTrigger } from './components/ChatbotTrigger';
 import { VolatilityAlertToast } from './components/VolatilityAlertToast';
 import { GoogleChatModal } from './components/GoogleChatModal';
+import { GmailModal } from './components/GmailModal';
 import {
   calculate14DayAverageRange,
   computeStockVolatilityMetric,
@@ -73,6 +74,9 @@ export default function App() {
     setChatTemplate(template || 'CUSTOM');
     setGoogleChatOpen(true);
   };
+
+  // Gmail Workspace Integration modal state
+  const [gmailOpen, setGmailOpen] = useState(false);
 
   // Real-time Volatility Alert state
   const [activeVolatilityToast, setActiveVolatilityToast] = useState<MarketAlert | null>(null);
@@ -280,7 +284,7 @@ export default function App() {
   const unreadAlertsCount = alerts.filter((a) => a.triggered).length;
 
   return (
-    <div className="min-h-screen bg-[#131211] text-[#F7EEDB] flex flex-col font-sans selection:bg-[#D96B43]/30 selection:text-[#F7EEDB]">
+    <div className="min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden bg-[#131211] text-[#F7EEDB] flex flex-col font-sans selection:bg-[#D96B43]/30 selection:text-[#F7EEDB]">
       {/* Offline Toast Indicator */}
       <OfflineIndicator />
 
@@ -312,10 +316,11 @@ export default function App() {
         onOpenRegister={() => setAuthModalOpen(true)}
         onOpenChatbot={() => setChatbotOpen(true)}
         onOpenGoogleChat={() => handleOpenGoogleChat()}
+        onOpenGmail={() => setGmailOpen(true)}
       />
 
       {/* Active View Router */}
-      <main className="flex-1 pb-20 lg:pb-8">
+      <main className="flex-1 w-full pb-24 lg:pb-10">
         {activeView === 'landing' && (
           <LandingPage
             onLaunchDashboard={() => setActiveView('dashboard')}
@@ -466,6 +471,8 @@ export default function App() {
         activeView={activeView}
         setActiveView={setActiveView}
         unreadAlertsCount={unreadAlertsCount}
+        onOpenGmail={() => setGmailOpen(true)}
+        onOpenGoogleChat={() => handleOpenGoogleChat()}
       />
 
       {/* AI Deep Explanation Modal */}
@@ -537,6 +544,16 @@ export default function App() {
         stocks={stocks}
         initialShareText={chatShareText}
         initialTemplate={chatTemplate}
+      />
+
+      {/* Gmail Workspace Integration Modal */}
+      <GmailModal
+        isOpen={gmailOpen}
+        onClose={() => setGmailOpen(false)}
+        stocks={stocks}
+        selectedStock={selectedStock}
+        userEmail={profile.email}
+        userName={profile.name}
       />
     </div>
   );

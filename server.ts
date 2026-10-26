@@ -850,15 +850,37 @@ export default { injectIntoGlobalHook, register, createSignatureFunctionForTrans
 `);
 });
 
-app.get('/registerSW.js', (_req, res) => {
-  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.send('// Service worker registration disabled');
+app.get('/manifest.webmanifest', (_req, res) => {
+  const distManifest = path.join(distPath, 'manifest.webmanifest');
+  const pubManifest = path.join(__dirname, 'public', 'manifest.webmanifest');
+  res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+  if (fs.existsSync(distManifest)) {
+    return res.sendFile(distManifest);
+  }
+  if (fs.existsSync(pubManifest)) {
+    return res.sendFile(pubManifest);
+  }
+  return res.status(404).end();
 });
 
-app.get(['/sw.js', '/workbox-*.js'], (_req, res) => {
+app.get('/registerSW.js', (_req, res) => {
   res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Cache-Control', 'no-cache');
+  const distRegSw = path.join(distPath, 'registerSW.js');
+  if (fs.existsSync(distRegSw)) {
+    return res.sendFile(distRegSw);
+  }
+  res.send('// Service worker registration ready');
+});
+
+app.get(['/sw.js', '/workbox-*.js'], (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  const requestedFile = path.basename(req.path);
+  const distFile = path.join(distPath, requestedFile);
+  if (fs.existsSync(distFile)) {
+    return res.sendFile(distFile);
+  }
   res.send(QUIET_UNREGISTER_SW);
 });
 

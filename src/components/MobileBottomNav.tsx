@@ -18,6 +18,8 @@ import {
   ShieldCheck,
   Coins,
   Gamepad2,
+  Mail,
+  MessageSquare,
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
@@ -25,12 +27,16 @@ interface Props {
   activeView: string;
   setActiveView: (view: string) => void;
   unreadAlertsCount: number;
+  onOpenGmail?: () => void;
+  onOpenGoogleChat?: () => void;
 }
 
 export const MobileBottomNav: React.FC<Props> = ({
   activeView,
   setActiveView,
   unreadAlertsCount,
+  onOpenGmail,
+  onOpenGoogleChat,
 }) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
@@ -75,7 +81,7 @@ export const MobileBottomNav: React.FC<Props> = ({
               <button
                 key={tab.id}
                 onClick={() => handleTabClick(tab.id)}
-                className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-200 active:scale-95 min-w-[56px] ${
+                className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-200 active:scale-95 min-w-[60px] min-h-[48px] ${
                   isActive
                     ? 'text-[#FFFDF8]'
                     : 'text-[#F7EEDB]/60 hover:text-[#F7EEDB]'
@@ -91,7 +97,7 @@ export const MobileBottomNav: React.FC<Props> = ({
                   <Icon className="w-4 h-4" />
                 </div>
                 <span
-                  className={`text-[10px] mt-0.5 tracking-tight font-medium ${
+                  className={`text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap ${
                     isActive ? 'text-[#D96B43] font-bold' : 'text-[#F7EEDB]/70'
                   }`}
                 >
@@ -104,7 +110,7 @@ export const MobileBottomNav: React.FC<Props> = ({
           {/* More / Menu Drawer Toggle */}
           <button
             onClick={() => setDrawerOpen(!drawerOpen)}
-            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-200 active:scale-95 min-w-[56px] ${
+            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-200 active:scale-95 min-w-[60px] min-h-[48px] ${
               drawerOpen || !mainTabs.some((t) => t.id === activeView)
                 ? 'text-[#FFFDF8]'
                 : 'text-[#F7EEDB]/60 hover:text-[#F7EEDB]'
@@ -119,11 +125,11 @@ export const MobileBottomNav: React.FC<Props> = ({
             >
               {drawerOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
               {unreadAlertsCount > 0 && !drawerOpen && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#D96B43] animate-pulse" />
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#D96B43]" />
               )}
             </div>
             <span
-              className={`text-[10px] mt-0.5 tracking-tight font-medium ${
+              className={`text-[10px] mt-0.5 tracking-tight font-medium whitespace-nowrap ${
                 drawerOpen ? 'text-[#8CB4E0] font-bold' : 'text-[#F7EEDB]/70'
               }`}
             >
@@ -143,7 +149,7 @@ export const MobileBottomNav: React.FC<Props> = ({
           />
 
           {/* Drawer Sheet */}
-          <div className="relative z-10 w-full max-h-[85vh] overflow-y-auto rounded-t-3xl bg-[#1A1816] border-t border-[#D96B43]/40 p-5 space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-200">
+          <div className="relative z-10 w-full max-h-[85dvh] overflow-y-auto rounded-t-3xl bg-[#1A1816] border-t border-[#D96B43]/40 p-5 space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-200">
             {/* Header with drag indicator */}
             <div className="flex flex-col items-center pb-2 border-b border-[#D96B43]/20">
               <div className="w-10 h-1 rounded-full bg-[#F7EEDB]/20 mb-3" />
@@ -151,15 +157,12 @@ export const MobileBottomNav: React.FC<Props> = ({
                 <div>
                   <h3 className="text-base font-bold text-[#F7EEDB] flex items-center gap-2">
                     <span>MarKtXPO Terminal</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#D96B43]/20 text-[#D96B43] font-mono font-bold">
-                      PWA
-                    </span>
                   </h3>
                   <p className="text-xs text-[#F7EEDB]/60">Select analytics view or install app</p>
                 </div>
                 <button
                   onClick={() => setDrawerOpen(false)}
-                  className="p-1.5 rounded-xl bg-[#25221F] text-[#F7EEDB]/70 hover:text-[#FFFDF8]"
+                  className="p-2 rounded-xl bg-[#25221F] text-[#F7EEDB]/70 hover:text-[#FFFDF8]"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -168,14 +171,14 @@ export const MobileBottomNav: React.FC<Props> = ({
 
             {/* PWA Install Promo Box inside drawer */}
             {!isInstalled && (
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#D96B43]/20 via-[#1A1816] to-[#8CB4E0]/15 border border-[#D96B43]/40 flex items-center justify-between gap-3 shadow-[0_0_16px_rgba(217,107,67,0.15)]">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#D96B43] text-[#FFFDF8] flex items-center justify-center font-bold text-sm shrink-0 shadow-lg shadow-[#D96B43]/30">
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#D96B43]/20 via-[#1A1816] to-[#8CB4E0]/15 border border-[#D96B43]/40 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-[#D96B43] text-[#FFFDF8] flex items-center justify-center font-bold text-sm shrink-0">
                     <Smartphone className="w-5 h-5" />
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-[#FFFDF8]">Install MxpO PWA</h4>
-                    <p className="text-[11px] text-[#F7EEDB]/70">Add to home screen for fast fullscreen trading</p>
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold text-[#FFFDF8] truncate">Install MxpO PWA</h4>
+                    <p className="text-[11px] text-[#F7EEDB]/70 truncate">Add to home screen for fullscreen trading</p>
                   </div>
                 </div>
 
@@ -185,7 +188,7 @@ export const MobileBottomNav: React.FC<Props> = ({
                       await install();
                       setDrawerOpen(false);
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#D96B43] text-[#131211] font-bold text-xs hover:brightness-110 active:scale-95 shrink-0 shadow-[0_0_12px_rgba(217,107,67,0.4)]"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#D96B43] text-[#131211] font-bold text-xs hover:brightness-110 active:scale-95 shrink-0"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>Install</span>
@@ -193,13 +196,13 @@ export const MobileBottomNav: React.FC<Props> = ({
                 ) : isIOS ? (
                   <button
                     onClick={() => setShowIOSModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#8CB4E0] text-[#131211] font-bold text-xs shrink-0"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#8CB4E0] text-[#131211] font-bold text-xs shrink-0"
                   >
                     <Smartphone className="w-3.5 h-3.5" />
                     <span>How to add</span>
                   </button>
                 ) : (
-                  <span className="text-[10px] text-[#8CB4E0] font-mono">Install from browser</span>
+                  <span className="text-[10px] text-[#8CB4E0] font-mono shrink-0">Browser Menu</span>
                 )}
               </div>
             )}
@@ -220,9 +223,9 @@ export const MobileBottomNav: React.FC<Props> = ({
                   <button
                     key={item.id}
                     onClick={() => handleTabClick(item.id)}
-                    className={`p-3 rounded-xl border text-left transition-all active:scale-95 flex items-start gap-2.5 ${
+                    className={`p-3 rounded-xl border text-left transition-all active:scale-95 flex items-start gap-2.5 min-h-[56px] ${
                       isActive
-                        ? 'bg-[#D96B43]/20 border-[#D96B43] shadow-[0_0_12px_rgba(217,107,67,0.3)]'
+                        ? 'bg-[#D96B43]/20 border-[#D96B43]'
                         : 'bg-[#131211] border-[#D96B43]/20 hover:border-[#D96B43]/60'
                     }`}
                   >
@@ -242,13 +245,43 @@ export const MobileBottomNav: React.FC<Props> = ({
               })}
             </div>
 
-            {/* Offline & Exchange badges */}
+            {/* Google Workspace Dispatch Actions */}
+            {(onOpenGmail || onOpenGoogleChat) && (
+              <div className="grid grid-cols-2 gap-2.5 pt-1">
+                {onOpenGmail && (
+                  <button
+                    onClick={() => {
+                      setDrawerOpen(false);
+                      onOpenGmail();
+                    }}
+                    className="flex items-center justify-center gap-2 p-3 rounded-xl bg-red-950/30 border border-red-500/40 text-red-200 font-bold text-xs min-h-[48px]"
+                  >
+                    <Mail className="w-4 h-4 text-red-400 shrink-0" />
+                    <span className="truncate">Gmail Dispatch</span>
+                  </button>
+                )}
+                {onOpenGoogleChat && (
+                  <button
+                    onClick={() => {
+                      setDrawerOpen(false);
+                      onOpenGoogleChat();
+                    }}
+                    className="flex items-center justify-center gap-2 p-3 rounded-xl bg-[#131211] border border-[#D96B43]/35 text-[#F7EEDB] font-bold text-xs min-h-[48px]"
+                  >
+                    <MessageSquare className="w-4 h-4 text-[#D96B43] shrink-0" />
+                    <span className="truncate">Google Chat</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Offline & Exchange footer */}
             <div className="pt-2 border-t border-[#D96B43]/20 flex items-center justify-between text-[11px] font-mono text-[#F7EEDB]/60">
               <span className="flex items-center gap-1 text-[#22C55E]">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                NSE &amp; BSE Certified Feeds
+                NSE &amp; BSE Equities
               </span>
-              <span>v2.4.0 Standalone</span>
+              <span>Standalone PWA</span>
             </div>
           </div>
         </div>

@@ -12,7 +12,7 @@ export const ChatbotTrigger: React.FC<Props> = ({ onClick, isOpen }) => {
   return (
     <button
       onClick={onClick}
-      className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-40 group flex items-center gap-2.5 p-3.5 sm:px-4 sm:py-3 rounded-2xl bg-gradient-to-r from-[#D96B43] via-[#C45E37] to-[#B85D3B] text-[#131211] font-bold text-xs shadow-[0_6px_28px_rgba(217,107,67,0.45)] hover:shadow-[0_8px_36px_rgba(217,107,67,0.65)] hover:brightness-110 active:scale-95 transition-all duration-300 border border-[#FFFDF8]/30"
+      className="fixed bottom-20 lg:bottom-6 right-3 sm:right-6 z-40 group flex items-center gap-2.5 p-3 sm:px-4 sm:py-3 min-h-[44px] min-w-[44px] rounded-2xl bg-gradient-to-r from-[#D96B43] via-[#C45E37] to-[#B85D3B] text-[#131211] font-bold text-xs shadow-[0_6px_28px_rgba(217,107,67,0.45)] hover:shadow-[0_8px_36px_rgba(217,107,67,0.65)] hover:brightness-110 active:scale-95 transition-all duration-300 border border-[#FFFDF8]/30 whitespace-nowrap"
       title="Open NseBse Gemini Quant Chatbot"
     >
       <div className="relative">

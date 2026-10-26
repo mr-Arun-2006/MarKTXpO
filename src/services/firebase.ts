@@ -25,6 +25,7 @@ import {
   Firestore,
 } from 'firebase/firestore';
 import firebaseConfigData from '../../firebase-applet-config.json';
+import { GMAIL_SCOPES, setGmailAccessToken } from './gmail';
 
 const firebaseConfig = {
   apiKey: firebaseConfigData.apiKey,
@@ -42,8 +43,9 @@ export const app: FirebaseApp = getApps().length === 0 ? initializeApp(firebaseC
 export const auth: Auth = getAuth(app);
 
 // Initialize Firestore with custom database ID
-export const db: Firestore = firebaseConfigData.firestoreDatabaseId
-  ? getFirestore(app, firebaseConfigData.firestoreDatabaseId)
+const customDbId = (firebaseConfigData as any).firestoreDatabaseId;
+export const db: Firestore = customDbId
+  ? getFirestore(app, customDbId)
   : getFirestore(app);
 
 // Fallback session management for when Email/Password, Anonymous Auth, or preview domain is restricted in Firebase Console
@@ -257,7 +259,19 @@ export async function signInAsGuest(): Promise<User> {
 export async function signInWithGoogle(customInput?: Partial<RegisterUserInput>): Promise<User> {
   try {
     const provider = new GoogleAuthProvider();
+    GMAIL_SCOPES.forEach((scope) => {
+      provider.addScope(scope);
+    });
+    provider.setCustomParameters({
+      prompt: 'consent',
+    });
+
     const result = await signInWithPopup(auth, provider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (credential?.accessToken) {
+      setGmailAccessToken(credential.accessToken);
+    }
+
     localStorage.removeItem(FALLBACK_SESSION_KEY);
     await provisionStarterData(result.user, customInput);
     await syncUserToCloudSql(result.user, customInput?.displayName);
@@ -290,6 +304,9 @@ export async function signInWithGoogle(customInput?: Partial<RegisterUserInput>)
 // Sign Out
 export async function logOut(): Promise<void> {
   localStorage.removeItem(FALLBACK_SESSION_KEY);
+  try {
+    setGmailAccessToken(null);
+  } catch {}
   try {
     await fbSignOut(auth);
   } catch {}

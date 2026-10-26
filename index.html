@@ -2,26 +2,6 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <script>
-      (function() {
-        try {
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(regs) {
-              for (var i = 0; i < regs.length; i++) {
-                regs[i].unregister();
-              }
-            }).catch(function() {});
-          }
-          if ('caches' in window) {
-            caches.keys().then(function(keys) {
-              for (var j = 0; j < keys.length; j++) {
-                caches.delete(keys[j]);
-              }
-            }).catch(function() {});
-          }
-        } catch (e) {}
-      })();
-    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <meta name="theme-color" content="#131211" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -60,8 +40,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
-  <body class="bg-[#131211] text-[#F7EEDB] antialiased selection:bg-[#D96B43]/30 selection:text-[#F7EEDB]">
-    <div id="root"></div>
+  <body class="min-h-[100dvh] w-full overflow-x-hidden bg-[#131211] text-[#F7EEDB] antialiased selection:bg-[#D96B43]/30 selection:text-[#F7EEDB]">
+    <div id="root" class="min-h-[100dvh] w-full flex flex-col overflow-x-hidden"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

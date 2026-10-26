@@ -42,32 +42,32 @@ export const LandingPage: React.FC<Props> = ({
   return (
     <div className="min-h-screen text-[#F7EEDB] flex flex-col bg-[#131211]">
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-14 pb-20 px-4 sm:px-6 lg:px-8 border-b border-[#D96B43]/20 bg-gradient-to-b from-[#131211] via-[#1A1816] to-[#131211]">
+      <section className="relative overflow-hidden pt-8 sm:pt-14 pb-12 sm:pb-20 px-4 sm:px-6 lg:px-8 border-b border-[#D96B43]/20 bg-gradient-to-b from-[#131211] via-[#1A1816] to-[#131211]">
         {/* Canyon & Morning Sky ambient glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-[#D96B43]/15 via-[#8CB4E0]/15 to-transparent blur-[140px] pointer-events-none"></div>
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] sm:w-[600px] h-[250px] sm:h-[350px] bg-gradient-to-tr from-[#D96B43]/15 via-[#8CB4E0]/15 to-transparent blur-[120px] pointer-events-none"></div>
 
-        <div className="relative max-w-5xl mx-auto text-center space-y-6">
+        <div className="relative max-w-5xl mx-auto text-center space-y-5 sm:space-y-6">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#1A1816] border border-[#D96B43]/35 text-[#F7EEDB] text-xs font-semibold backdrop-blur-md">
             <Sparkles className="w-3.5 h-3.5 text-[#D96B43]" />
             <span>Dual NSE &amp; BSE EOD Quantitative Terminal</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#F7EEDB] leading-tight">
+          <h1 className="text-2xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#F7EEDB] leading-tight text-balance">
             Institutional Precision for <br className="hidden sm:inline" />
             <span className="bg-gradient-to-r from-[#D96B43] via-[#F7EEDB] to-[#8CB4E0] bg-clip-text text-transparent">
               Indian Equity Markets
             </span>
           </h1>
 
-          <p className="max-w-2xl mx-auto text-sm sm:text-base text-[#F7EEDB]/70 leading-relaxed">
+          <p className="max-w-2xl mx-auto text-xs sm:text-base text-[#F7EEDB]/70 leading-relaxed">
             Explore Indian equities with deterministic technical indicators, Gemini-assisted explanations, third-party NSE/BSE quote comparisons, and strategy backtesting. Market data may be delayed; this app is not a direct exchange feed.
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-3 sm:gap-4 pt-3">
             <button
               onClick={onLaunchDashboard}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#D96B43] to-[#B85D3B] text-[#FFFDF8] font-bold text-sm shadow-lg shadow-[#D96B43]/25 hover:brightness-110 active:scale-95 transition"
+              className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl bg-gradient-to-r from-[#D96B43] to-[#B85D3B] text-[#FFFDF8] font-bold text-sm shadow-lg shadow-[#D96B43]/25 hover:brightness-110 active:scale-95 transition whitespace-nowrap"
             >
               <span>Launch Terminal</span>
               <ArrowRight className="w-4 h-4" />
@@ -76,7 +76,7 @@ export const LandingPage: React.FC<Props> = ({
             {onPlayGame && (
               <button
                 onClick={onPlayGame}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl border border-[#22C55E]/40 bg-[#1A1816] hover:bg-[#22C55E]/15 text-[#22C55E] text-sm font-semibold transition"
+                className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl border border-[#22C55E]/40 bg-[#1A1816] hover:bg-[#22C55E]/15 text-[#22C55E] text-sm font-semibold transition whitespace-nowrap"
               >
                 <Gamepad2 className="w-4 h-4" />
                 <span>Student Trading Game</span>
@@ -86,7 +86,7 @@ export const LandingPage: React.FC<Props> = ({
             {onRegister && (
               <button
                 onClick={onRegister}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl border border-[#D96B43]/40 bg-[#1A1816] hover:bg-[#D96B43]/20 text-[#D96B43] text-sm font-semibold transition"
+                className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl border border-[#D96B43]/40 bg-[#1A1816] hover:bg-[#D96B43]/20 text-[#D96B43] text-sm font-semibold transition whitespace-nowrap"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>Register Free Account</span>
@@ -95,13 +95,15 @@ export const LandingPage: React.FC<Props> = ({
 
             <button
               onClick={() => onExploreStock(featuredStocks[0])}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl border border-[#D96B43]/30 bg-[#1A1816] hover:bg-[#25221F] text-[#F7EEDB] text-sm font-semibold transition"
+              className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl border border-[#D96B43]/30 bg-[#1A1816] hover:bg-[#25221F] text-[#F7EEDB] text-sm font-semibold transition whitespace-nowrap"
             >
               <Brain className="w-4 h-4 text-[#8CB4E0]" />
               <span>Explore AI Trade Thesis</span>
             </button>
 
-            <PWAInstallButton />
+            <div className="flex justify-center">
+              <PWAInstallButton />
+            </div>
           </div>
 
           {/* Trust badges */}

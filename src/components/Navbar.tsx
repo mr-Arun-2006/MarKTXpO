@@ -25,6 +25,7 @@ import {
   UserPlus,
   Bot,
   MessageSquare,
+  Mail,
 } from 'lucide-react';
 
 interface Props {
@@ -41,6 +42,7 @@ interface Props {
   onOpenRegister?: () => void;
   onOpenChatbot?: () => void;
   onOpenGoogleChat?: () => void;
+  onOpenGmail?: () => void;
 }
 
 export const Navbar: React.FC<Props> = ({
@@ -57,6 +59,7 @@ export const Navbar: React.FC<Props> = ({
   onOpenRegister,
   onOpenChatbot,
   onOpenGoogleChat,
+  onOpenGmail,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -163,24 +166,21 @@ export const Navbar: React.FC<Props> = ({
       </div>
 
       {/* Main Bar */}
-      <div className="flex items-center justify-between px-3 sm:px-6 h-16 gap-3">
+      <div className="max-w-7xl mx-auto flex items-center justify-between px-2.5 sm:px-5 lg:px-8 h-14 sm:h-16 gap-2 sm:gap-3">
         {/* Logo & Brand */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setActiveView('landing')}
-            className="flex items-center gap-2.5 text-left group"
+            className="flex items-center gap-2 text-left group whitespace-nowrap shrink-0"
           >
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#D96B43] via-[#8CB4E0] to-[#D96B43] p-0.5 shadow-md shadow-[#D96B43]/20 group-hover:scale-105 transition">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-[#D96B43] via-[#8CB4E0] to-[#D96B43] p-0.5 shadow-md shadow-[#D96B43]/20 group-hover:scale-105 transition shrink-0">
               <div className="w-full h-full bg-[#131211] rounded-[10px] flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-[#D96B43]" />
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-[#D96B43]" />
               </div>
             </div>
-            <div>
+            <div className="leading-tight">
               <div className="flex items-center gap-1.5">
-                <span className="text-base font-bold tracking-tight text-[#F7EEDB]">MarKtXPO</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#D96B43]/20 text-[#D96B43] font-mono font-bold border border-[#D96B43]/35">
-                  AI
-                </span>
+                <span className="text-sm sm:text-base font-bold tracking-tight text-[#F7EEDB]">MarKtXPO</span>
               </div>
               <p className="text-[10px] text-[#8CB4E0]/80 hidden sm:block">Indian Equities Terminal</p>
             </div>
@@ -188,9 +188,9 @@ export const Navbar: React.FC<Props> = ({
         </div>
 
         {/* Global Search Bar */}
-        <div className="relative flex-1 max-w-xs sm:max-w-md">
+        <div className="relative flex-1 min-w-[110px] max-w-[200px] sm:max-w-xs lg:max-w-sm">
           <div className="relative flex items-center">
-            <Search className="w-4 h-4 text-[#F7EEDB]/40 absolute left-3 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#F7EEDB]/40 absolute left-2.5 sm:left-3 pointer-events-none" />
             <input
               type="text"
               placeholder={t.searchPlaceholder}
@@ -200,12 +200,12 @@ export const Navbar: React.FC<Props> = ({
                 setShowSearchResults(true);
               }}
               onFocus={() => setShowSearchResults(true)}
-              className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-[#1A1816] border border-[#D96B43]/25 text-xs text-[#F7EEDB] placeholder-[#F7EEDB]/40 focus:outline-none focus:border-[#D96B43] focus:ring-1 focus:ring-[#D96B43] transition"
+              className="w-full pl-8 sm:pl-9 pr-6 py-1.5 rounded-xl bg-[#1A1816] border border-[#D96B43]/25 text-xs text-[#F7EEDB] placeholder-[#F7EEDB]/40 focus:outline-none focus:border-[#D96B43] focus:ring-1 focus:ring-[#D96B43] transition"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 text-[#F7EEDB]/50 hover:text-[#F7EEDB] text-xs"
+                className="absolute right-2 text-[#F7EEDB]/50 hover:text-[#F7EEDB] text-xs"
               >
                 ✕
               </button>
@@ -219,7 +219,7 @@ export const Navbar: React.FC<Props> = ({
                 className="fixed inset-0 z-30"
                 onClick={() => setShowSearchResults(false)}
               ></div>
-              <div className="absolute left-0 right-0 top-11 z-40 rounded-xl bg-[#1A1816] border border-[#D96B43]/35 shadow-2xl overflow-hidden py-1">
+              <div className="absolute left-0 right-0 sm:w-80 top-11 z-40 rounded-xl bg-[#1A1816] border border-[#D96B43]/35 shadow-2xl overflow-hidden py-1">
                 {searchResults.length === 0 ? (
                   <div className="p-3 text-xs text-[#F7EEDB]/60 text-center">No stocks matching "{searchQuery}"</div>
                 ) : (
@@ -234,17 +234,17 @@ export const Navbar: React.FC<Props> = ({
                       }}
                       className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-[#25221F] transition text-xs"
                     >
-                      <div>
-                        <div className="flex items-center gap-2">
+                      <div className="min-w-0 pr-2">
+                        <div className="flex items-center gap-1.5">
                           <span className="font-bold text-[#F7EEDB]">{stock.ticker}</span>
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#131211] text-[#8CB4E0] font-mono">
+                          <span className="text-[10px] text-[#8CB4E0] font-mono">
                             {stock.bseCode}
                           </span>
-                          <span className="text-[#F7EEDB]/60 text-[11px] truncate max-w-[140px]">{stock.name}</span>
+                          <span className="text-[#F7EEDB]/60 text-[11px] truncate max-w-[120px]">{stock.name}</span>
                         </div>
                         <span className="text-[10px] text-[#D96B43]">{stock.sector}</span>
                       </div>
-                      <div className="text-right font-mono">
+                      <div className="text-right font-mono tabular-nums shrink-0">
                         <div className="font-bold text-[#F7EEDB]">₹{stock.currentPrice.toFixed(2)}</div>
                         <div className={stock.change >= 0 ? 'text-[#22C55E] text-[11px] font-bold' : 'text-[#EF4444] text-[11px] font-bold'}>
                           {stock.change >= 0 ? '+' : ''}{stock.changePercent}%
@@ -259,7 +259,7 @@ export const Navbar: React.FC<Props> = ({
         </div>
 
         {/* Desktop Quick Nav Links */}
-        <nav className="hidden xl:flex items-center gap-1.5 text-xs font-semibold">
+        <nav className="hidden xl:flex items-center gap-1 text-xs font-semibold shrink-0">
           {navItems.slice(1, 6).map((item) => {
             const Icon = item.icon;
             const active = activeView === item.id;
@@ -267,10 +267,10 @@ export const Navbar: React.FC<Props> = ({
               <button
                 key={item.id}
                 onClick={() => setActiveView(item.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all duration-200 ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all duration-200 whitespace-nowrap shrink-0 ${
                   active
                     ? 'bg-[#D96B43]/20 text-[#FFFDF8] border border-[#D96B43] shadow-[0_0_14px_rgba(217,107,67,0.4)] font-bold'
-                    : 'text-[#F7EEDB]/70 hover:text-[#FFFDF8] hover:bg-[#1A1816] border border-transparent hover:border-[#8CB4E0]/50 hover:shadow-[0_0_10px_rgba(140,180,224,0.25)]'
+                    : 'text-[#F7EEDB]/75 hover:text-[#FFFDF8] hover:bg-[#1A1816] border border-transparent hover:border-[#8CB4E0]/50'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5 text-[#D96B43]" />
@@ -280,21 +280,21 @@ export const Navbar: React.FC<Props> = ({
           })}
         </nav>
 
-        {/* Right Tools: Language, Alerts, MxpO PWA Button, Profile */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* PWA Install Button (with 'MxpO' label) */}
+        {/* Right Tools: PWA Install, Workspace, Alerts, Profile */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* PWA Install Button */}
           <PWAInstallButton compact />
 
-          {/* Language Switcher */}
-          <div className="relative group">
+          {/* Language Switcher (Desktop & Tablet) */}
+          <div className="relative group hidden md:block">
             <button
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-[#8CB4E0]/40 bg-[#1A1816] text-xs font-medium text-[#F7EEDB] hover:text-[#FFFDF8] hover:border-[#8CB4E0] hover:shadow-[0_0_12px_rgba(140,180,224,0.35)] transition"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-[#8CB4E0]/40 bg-[#1A1816] text-xs font-medium text-[#F7EEDB] hover:text-[#FFFDF8] hover:border-[#8CB4E0] transition whitespace-nowrap shrink-0"
               title="Change Language / भाषा बदलें"
             >
               <Globe className="w-3.5 h-3.5 text-[#8CB4E0]" />
               <span className="uppercase font-mono text-[11px] font-bold">{language}</span>
             </button>
-            <div className="absolute right-0 top-9 hidden group-hover:block z-50 w-36 rounded-xl bg-[#1A1816] border border-[#D96B43]/45 shadow-[0_4px_24px_rgba(0,0,0,0.7),0_0_16px_rgba(217,107,67,0.2)] py-1 overflow-hidden">
+            <div className="absolute right-0 top-9 hidden group-hover:block z-50 w-36 rounded-xl bg-[#1A1816] border border-[#D96B43]/45 shadow-2xl py-1 overflow-hidden">
               {languages.map((l) => (
                 <button
                   key={l.code}
@@ -314,37 +314,49 @@ export const Navbar: React.FC<Props> = ({
           <button
             onClick={() => setActiveView('alerts')}
             title="Real-time Trade Alerts"
-            className="relative p-2 rounded-xl border border-[#8CB4E0]/40 bg-[#1A1816] text-[#F7EEDB] hover:text-[#FFFDF8] hover:border-[#8CB4E0] hover:shadow-[0_0_12px_rgba(140,180,224,0.35)] transition"
+            className="relative p-2 rounded-xl border border-[#8CB4E0]/40 bg-[#1A1816] text-[#F7EEDB] hover:text-[#FFFDF8] hover:border-[#8CB4E0] transition shrink-0"
           >
             <Bell className="w-4 h-4 text-[#8CB4E0]" />
             {unreadAlertsCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#D96B43] text-[#FFFDF8] text-[9px] font-extrabold flex items-center justify-center animate-pulse border border-[#F7EEDB]/50 shadow-[0_0_8px_rgba(217,107,67,0.6)]">
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#D96B43] text-[#FFFDF8] text-[9px] font-extrabold flex items-center justify-center border border-[#F7EEDB]/50 tabular-nums">
                 {unreadAlertsCount}
               </span>
             )}
           </button>
 
-          {/* Google Chat Integration Button */}
-          {onOpenGoogleChat && (
+          {/* Gmail Workspace Integration Button */}
+          {onOpenGmail && (
             <button
-              onClick={onOpenGoogleChat}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D96B43]/40 bg-[#1A1816] hover:bg-[#D96B43]/20 hover:border-[#D96B43] text-[#F7EEDB] hover:text-[#FFFDF8] text-xs font-semibold shadow-md shadow-[#D96B43]/10 transition"
-              title="Open Google Chat Market Intelligence Dispatcher"
+              onClick={onOpenGmail}
+              className="flex items-center gap-1.5 p-2 sm:px-2.5 sm:py-1.5 rounded-xl border border-red-500/40 bg-red-950/20 hover:bg-red-900/30 hover:border-red-500 text-red-200 hover:text-white text-xs font-semibold shadow-md shadow-red-500/10 transition whitespace-nowrap shrink-0"
+              title="Open Gmail Workspace Market Dispatcher & Inbox Feed"
             >
-              <MessageSquare className="w-3.5 h-3.5 text-[#D96B43]" />
-              <span className="hidden sm:inline">Google Chat</span>
+              <Mail className="w-3.5 h-3.5 text-red-400" />
+              <span className="hidden lg:inline">Gmail</span>
             </button>
           )}
 
-          {/* AI Quant Chatbot Button */}
+          {/* Google Chat Integration Button (Desktop/Tablet) */}
+          {onOpenGoogleChat && (
+            <button
+              onClick={onOpenGoogleChat}
+              className="hidden md:flex items-center gap-1.5 p-2 lg:px-2.5 lg:py-1.5 rounded-xl border border-[#D96B43]/40 bg-[#1A1816] hover:bg-[#D96B43]/20 hover:border-[#D96B43] text-[#F7EEDB] hover:text-[#FFFDF8] text-xs font-semibold transition whitespace-nowrap shrink-0"
+              title="Open Google Chat Market Intelligence Dispatcher"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-[#D96B43]" />
+              <span className="hidden 2xl:inline">Google Chat</span>
+            </button>
+          )}
+
+          {/* AI Quant Chatbot Button (Desktop/Tablet) */}
           {onOpenChatbot && (
             <button
               onClick={onOpenChatbot}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D96B43]/40 bg-[#1A1816] hover:bg-[#D96B43]/20 hover:border-[#D96B43] text-[#F7EEDB] hover:text-[#FFFDF8] text-xs font-semibold shadow-md shadow-[#D96B43]/10 transition"
+              className="hidden sm:flex items-center gap-1.5 p-2 lg:px-2.5 lg:py-1.5 rounded-xl border border-[#D96B43]/40 bg-[#1A1816] hover:bg-[#D96B43]/20 hover:border-[#D96B43] text-[#F7EEDB] hover:text-[#FFFDF8] text-xs font-semibold transition whitespace-nowrap shrink-0"
               title="Open NseBse Gemini Quant Chatbot"
             >
               <Bot className="w-3.5 h-3.5 text-[#D96B43]" />
-              <span className="hidden sm:inline">AI Chatbot</span>
+              <span className="hidden 2xl:inline">AI Chatbot</span>
             </button>
           )}
 
@@ -352,42 +364,97 @@ export const Navbar: React.FC<Props> = ({
           {onOpenRegister && (
             <button
               onClick={onOpenRegister}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#D96B43] to-[#B85D3B] hover:brightness-110 active:scale-95 text-[#131211] font-bold text-xs shadow-md shadow-[#D96B43]/20 transition"
-              title="Register New Trader in Firestore Cloud Database"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#D96B43] to-[#B85D3B] hover:brightness-110 active:scale-95 text-[#131211] font-bold text-xs shadow-md shadow-[#D96B43]/20 transition whitespace-nowrap shrink-0"
+              title="Register or Sign In"
             >
               <UserPlus className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Register / Sign In</span>
+              <span className="hidden lg:inline">Sign In</span>
             </button>
           )}
 
           {/* Profile / Settings Button */}
           <button
             onClick={() => setActiveView('profile')}
-            className={`flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border transition text-xs font-medium ${
+            className={`hidden sm:flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border transition text-xs font-medium whitespace-nowrap shrink-0 ${
               activeView === 'profile'
-                ? 'bg-[#D96B43]/25 border-[#D96B43] shadow-[0_0_14px_rgba(217,107,67,0.4)] text-[#FFFDF8]'
-                : 'border-[#D96B43]/35 bg-[#1A1816] text-[#F7EEDB] hover:border-[#D96B43] hover:shadow-[0_0_12px_rgba(217,107,67,0.3)] hover:text-[#FFFDF8]'
+                ? 'bg-[#D96B43]/25 border-[#D96B43] text-[#FFFDF8]'
+                : 'border-[#D96B43]/35 bg-[#1A1816] text-[#F7EEDB] hover:border-[#D96B43] hover:text-[#FFFDF8]'
             }`}
           >
             <div className="w-5 h-5 rounded-full bg-[#D96B43] flex items-center justify-center text-[10px] font-bold text-[#FFFDF8]">
               {profile.name.charAt(0)}
             </div>
-            <span className="hidden md:inline font-medium text-[#F7EEDB]">{profile.name.split(' ')[0]}</span>
+            <span className="hidden 2xl:inline font-medium text-[#F7EEDB]">{profile.name.split(' ')[0]}</span>
           </button>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile & Tablet Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-xl border border-[#D96B43]/35 bg-[#1A1816] text-[#F7EEDB] hover:border-[#D96B43] hover:shadow-[0_0_12px_rgba(217,107,67,0.3)] hover:text-[#FFFDF8] xl:hidden transition"
+            aria-label="Toggle navigation menu"
+            className="p-2 rounded-xl border border-[#D96B43]/35 bg-[#1A1816] text-[#F7EEDB] hover:border-[#D96B43] hover:text-[#FFFDF8] xl:hidden transition shrink-0"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
-      {/* Mobile Menu Drawer */}
+      {/* Tablet & Laptop Secondary Horizontal Navigation Strip (md to xl) */}
+      <div className="hidden md:flex xl:hidden items-center gap-1.5 overflow-x-auto px-4 py-1.5 border-t border-[#D96B43]/15 bg-[#131211]/90 scrollbar-none">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const active = activeView === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveView(item.id)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition ${
+                active
+                  ? 'bg-[#D96B43]/20 text-[#FFFDF8] border border-[#D96B43]/60'
+                  : 'text-[#F7EEDB]/70 hover:text-[#FFFDF8] hover:bg-[#1A1816]'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5 text-[#D96B43]" />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Mobile & Tablet Menu Drawer */}
       {mobileMenuOpen && (
-        <div className="xl:hidden border-t border-[#D96B43]/20 bg-[#131211] p-4 space-y-2">
+        <div className="xl:hidden border-t border-[#D96B43]/20 bg-[#131211] p-4 space-y-3 max-h-[80dvh] overflow-y-auto">
+          {/* Quick Account & Language Row on Mobile */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#D96B43]/15">
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+              {languages.map((l) => (
+                <button
+                  key={l.code}
+                  onClick={() => setLanguage(l.code)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-mono uppercase transition ${
+                    language === l.code
+                      ? 'bg-[#D96B43] text-[#131211] font-bold'
+                      : 'bg-[#1A1816] text-[#F7EEDB]/75 border border-[#D96B43]/20'
+                  }`}
+                >
+                  {l.code}
+                </button>
+              ))}
+            </div>
+
+            {onOpenRegister && (
+              <button
+                onClick={() => {
+                  onOpenRegister();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#D96B43] to-[#B85D3B] text-[#131211] font-bold text-xs"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Register / Sign In</span>
+              </button>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -399,31 +466,46 @@ export const Navbar: React.FC<Props> = ({
                     setActiveView(item.id);
                     setMobileMenuOpen(false);
                   }}
-                  className={`flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold transition ${
+                  className={`flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold transition min-h-[44px] ${
                     active
                       ? 'bg-[#D96B43]/25 text-[#FFFDF8] border border-[#D96B43]/50'
                       : 'text-[#F7EEDB]/80 bg-[#1A1816] border border-[#D96B43]/15 hover:bg-[#25221F]'
                   }`}
                 >
-                  <Icon className="w-4 h-4 text-[#D96B43]" />
-                  <span>{item.label}</span>
+                  <Icon className="w-4 h-4 text-[#D96B43] shrink-0" />
+                  <span className="truncate">{item.label}</span>
                 </button>
               );
             })}
           </div>
 
-          {onOpenGoogleChat && (
-            <button
-              onClick={() => {
-                onOpenGoogleChat();
-                setMobileMenuOpen(false);
-              }}
-              className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-xs font-bold text-[#F7EEDB] bg-[#1A1816] border border-[#D96B43]/30 hover:bg-[#D96B43]/20 transition"
-            >
-              <MessageSquare className="w-4 h-4 text-[#D96B43]" />
-              <span>Google Chat Market Dispatcher</span>
-            </button>
-          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            {onOpenGmail && (
+              <button
+                onClick={() => {
+                  onOpenGmail();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-xs font-bold text-red-200 bg-red-950/30 border border-red-500/40 hover:bg-red-900/40 transition min-h-[44px]"
+              >
+                <Mail className="w-4 h-4 text-red-400" />
+                <span>Gmail Market Dispatcher</span>
+              </button>
+            )}
+
+            {onOpenGoogleChat && (
+              <button
+                onClick={() => {
+                  onOpenGoogleChat();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-xs font-bold text-[#F7EEDB] bg-[#1A1816] border border-[#D96B43]/30 hover:bg-[#D96B43]/20 transition min-h-[44px]"
+              >
+                <MessageSquare className="w-4 h-4 text-[#D96B43]" />
+                <span>Google Chat Dispatcher</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
     </header>

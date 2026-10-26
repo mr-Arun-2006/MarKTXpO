@@ -59,15 +59,15 @@ export const DashboardView: React.FC<Props> = ({
   });
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto text-[#F7EEDB]">
+    <div className="w-full max-w-7xl mx-auto p-3 sm:p-5 lg:p-8 space-y-6 sm:space-y-8 text-[#F7EEDB]">
       {/* Top Banner / Surveillance Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#D96B43]/20">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-[#D96B43]/20">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#F7EEDB]">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-[#F7EEDB]">
               Equities Intelligence &amp; Surveillance
             </h1>
-            <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[#D96B43]/15 text-[#D96B43] border border-[#D96B43]/30 font-semibold font-mono tracking-wider">
+            <span className="text-[11px] text-[#D96B43] font-semibold font-mono tracking-wider">
               NSE · BSE
             </span>
           </div>
@@ -76,23 +76,23 @@ export const DashboardView: React.FC<Props> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 overflow-x-auto sm:flex-wrap pb-1 sm:pb-0 scrollbar-none">
           <button
             onClick={() => {
               setNewsViewTab('MARKET_NEWS');
               const el = document.getElementById('market-news-section');
               if (el) el.scrollIntoView({ behavior: 'smooth' });
             }}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#D96B43]/40 bg-[#1A1816] text-xs font-semibold text-[#F7EEDB] hover:bg-[#25221F] hover:border-[#D96B43] hover:shadow-[0_0_14px_rgba(217,107,67,0.35)] transition active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl border border-[#D96B43]/40 bg-[#1A1816] text-xs font-semibold text-[#F7EEDB] hover:bg-[#25221F] hover:border-[#D96B43] transition active:scale-95 whitespace-nowrap shrink-0"
           >
             <Newspaper className="w-3.5 h-3.5 text-[#D96B43]" />
             <span>Market News</span>
           </button>
           <button
             onClick={() => setShowHeatmap(!showHeatmap)}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-semibold transition active:scale-95 ${
+            className={`flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl border text-xs font-semibold transition active:scale-95 whitespace-nowrap shrink-0 ${
               showHeatmap
-                ? 'border-[#D96B43] bg-[#D96B43]/20 text-[#F7EEDB] shadow-[0_0_14px_rgba(217,107,67,0.35)]'
+                ? 'border-[#D96B43] bg-[#D96B43]/20 text-[#F7EEDB]'
                 : 'border-[#D96B43]/40 bg-[#1A1816] text-[#F7EEDB]/70 hover:bg-[#25221F] hover:text-[#F7EEDB]'
             }`}
           >
@@ -101,21 +101,21 @@ export const DashboardView: React.FC<Props> = ({
           </button>
           <button
             onClick={() => setActiveView('game')}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#22C55E]/40 bg-[#1A1816] text-xs font-semibold text-[#22C55E] hover:bg-[#22C55E]/15 hover:border-[#22C55E] hover:shadow-[0_0_14px_rgba(34,197,94,0.35)] transition active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl border border-[#22C55E]/40 bg-[#1A1816] text-xs font-semibold text-[#22C55E] hover:bg-[#22C55E]/15 hover:border-[#22C55E] transition active:scale-95 whitespace-nowrap shrink-0"
           >
             <Gamepad2 className="w-3.5 h-3.5" />
             <span>Trading Academy Game</span>
           </button>
           <button
             onClick={() => setActiveView('compare')}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#D96B43]/40 bg-[#1A1816] text-xs font-semibold text-[#F7EEDB] hover:bg-[#25221F] hover:border-[#D96B43] hover:shadow-[0_0_14px_rgba(217,107,67,0.35)] transition active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl border border-[#D96B43]/40 bg-[#1A1816] text-xs font-semibold text-[#F7EEDB] hover:bg-[#25221F] hover:border-[#D96B43] transition active:scale-95 whitespace-nowrap shrink-0"
           >
             <GitCompare className="w-3.5 h-3.5 text-[#D96B43]" />
             <span>NSE vs BSE</span>
           </button>
           <button
             onClick={() => setActiveView('screener')}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#8CB4E0]/40 bg-[#1A1816] text-xs font-semibold text-[#F7EEDB] hover:bg-[#25221F] hover:border-[#8CB4E0] hover:shadow-[0_0_14px_rgba(140,180,224,0.35)] transition active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl border border-[#8CB4E0]/40 bg-[#1A1816] text-xs font-semibold text-[#F7EEDB] hover:bg-[#25221F] hover:border-[#8CB4E0] transition active:scale-95 whitespace-nowrap shrink-0"
           >
             <Filter className="w-3.5 h-3.5 text-[#8CB4E0]" />
             <span>Simple Screener</span>

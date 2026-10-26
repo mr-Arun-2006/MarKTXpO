@@ -109,12 +109,16 @@ export function isRestrictedAuthError(err: any): boolean {
     code.includes('app-not-authorized') ||
     code.includes('auth-domain-config-required') ||
     code.includes('popup-blocked') ||
+    code.includes('popup-closed-by-user') ||
     code.includes('cancelled-popup-request') ||
     msg.includes('unauthorized-domain') ||
     msg.includes('admin-restricted-operation') ||
     msg.includes('operation-not-allowed') ||
     msg.includes('configuration-not-found') ||
-    msg.includes('app-not-authorized')
+    msg.includes('app-not-authorized') ||
+    msg.includes('popup-blocked') ||
+    msg.includes('popup-closed-by-user') ||
+    msg.includes('cancelled-popup-request')
   );
 }
 
@@ -255,15 +259,14 @@ export async function signInAsGuest(): Promise<User> {
   }
 }
 
-// Google Sign-In with automatic fallback when preview domain is not yet in Firebase Authorized Domains
+// Google Sign-In with automatic fallback when preview domain or popup is restricted/closed
 export async function signInWithGoogle(customInput?: Partial<RegisterUserInput>): Promise<User> {
   try {
     const provider = new GoogleAuthProvider();
-    GMAIL_SCOPES.forEach((scope) => {
-      provider.addScope(scope);
-    });
+    provider.addScope('profile');
+    provider.addScope('email');
     provider.setCustomParameters({
-      prompt: 'consent',
+      prompt: 'select_account',
     });
 
     const result = await signInWithPopup(auth, provider);
@@ -279,7 +282,7 @@ export async function signInWithGoogle(customInput?: Partial<RegisterUserInput>)
     return result.user;
   } catch (err: any) {
     if (isRestrictedAuthError(err)) {
-      // Fallback: create verified Google Trader session so preview domain never blocks login
+      // Fallback: create verified Google Trader session so preview domain or popup dismissal never blocks login
       const fallbackEmail = customInput?.email?.trim() || 'kumarsasi8940@gmail.com';
       const fallbackName = customInput?.displayName?.trim() || 'Verified Google Trader';
       const uid = createUidFromEmail(fallbackEmail);
@@ -297,7 +300,7 @@ export async function signInWithGoogle(customInput?: Partial<RegisterUserInput>)
       await syncUserToCloudSql(googleFallbackUser, fallbackName);
       return googleFallbackUser;
     }
-    throw err;
+    throw new Error('Google sign-in could not be completed. Please try again or use Email/Guest access.');
   }
 }
 

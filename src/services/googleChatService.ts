@@ -59,11 +59,19 @@ export interface ChatApiError {
   consoleUrl?: string;
 }
 
+export interface GoogleChatConnectResult {
+  user: User | null;
+  accessToken: string | null;
+  cancelled?: boolean;
+  errorMessage?: string;
+}
+
 /**
  * Initiates Google OAuth popup with Google Chat scopes requested.
  * Caches access token in-memory and returns the authenticated user and token.
+ * Gracefully catches popup closure/cancellation so no raw FirebaseError is thrown.
  */
-export async function connectGoogleChat(): Promise<{ user: User; accessToken: string }> {
+export async function connectGoogleChat(): Promise<GoogleChatConnectResult> {
   const provider = new GoogleAuthProvider();
   for (const scope of GOOGLE_CHAT_SCOPES) {
     provider.addScope(scope);
@@ -74,16 +82,57 @@ export async function connectGoogleChat(): Promise<{ user: User; accessToken: st
     access_type: 'offline',
   });
 
-  const result = await signInWithPopup(auth, provider);
-  const credential = GoogleAuthProvider.credentialFromResult(result);
-  const accessToken = credential?.accessToken;
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    const accessToken = credential?.accessToken;
 
-  if (!accessToken) {
-    throw new Error('No OAuth access token was returned for Google Chat. Please try signing in again.');
+    if (!accessToken) {
+      return {
+        user: result.user,
+        accessToken: null,
+        errorMessage: 'No OAuth access token was returned for Google Chat. Please try signing in again.',
+      };
+    }
+
+    inMemoryAccessToken = accessToken;
+    return { user: result.user, accessToken };
+  } catch (err: any) {
+    const code = String(err?.code || '').toLowerCase();
+    const msg = String(err?.message || '');
+    if (
+      code.includes('popup-closed-by-user') ||
+      code.includes('cancelled-popup-request') ||
+      msg.includes('popup-closed-by-user')
+    ) {
+      return {
+        user: null,
+        accessToken: null,
+        cancelled: true,
+        errorMessage: 'Google sign-in window was closed before completing authorization. Click Connect when ready.',
+      };
+    }
+    if (code.includes('popup-blocked')) {
+      return {
+        user: null,
+        accessToken: null,
+        cancelled: true,
+        errorMessage: 'Sign-in popup was blocked by the browser. Please allow popups for this site and try again.',
+      };
+    }
+    if (code.includes('unauthorized-domain')) {
+      return {
+        user: null,
+        accessToken: null,
+        errorMessage: 'This preview domain is not yet listed in Firebase Authorized Domains for Google Workspace OAuth.',
+      };
+    }
+    return {
+      user: null,
+      accessToken: null,
+      errorMessage: 'Google Chat sign-in could not be completed. Please try again.',
+    };
   }
-
-  inMemoryAccessToken = accessToken;
-  return { user: result.user, accessToken };
 }
 
 /**

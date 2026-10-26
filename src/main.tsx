@@ -15,6 +15,27 @@ try {
   // Non-fatal in restricted iframe contexts
 }
 
+// Prevent user-initiated OAuth popup dismissal from surfacing as an unhandled rejection
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'unhandledrejection',
+    (event) => {
+      const reason = event?.reason;
+      const code = String(reason?.code || '').toLowerCase();
+      const message = String(reason?.message || '').toLowerCase();
+      if (
+        code.includes('popup-closed-by-user') ||
+        code.includes('cancelled-popup-request') ||
+        message.includes('auth/popup-closed-by-user') ||
+        message.includes('auth/cancelled-popup-request')
+      ) {
+        event.preventDefault();
+      }
+    },
+    true
+  );
+}
+
 class RootErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null }

@@ -130,8 +130,8 @@ export const ProfileSettingsView: React.FC<Props> = ({
       const user = await signInWithGoogle();
       if (user.displayName) setName(user.displayName);
       if (user.email) setEmail(user.email);
-    } catch (e) {
-      console.error(e);
+    } catch {
+      // Popup closed or cancelled by user; loading state is reset below
     } finally {
       setAuthLoading(false);
     }
@@ -142,8 +142,8 @@ export const ProfileSettingsView: React.FC<Props> = ({
       setAuthLoading(true);
       const user = await signInAsGuest();
       if (user.displayName) setName(user.displayName);
-    } catch (e) {
-      console.error(e);
+    } catch {
+      // Handled by fallback guest session
     } finally {
       setAuthLoading(false);
     }
@@ -154,8 +154,8 @@ export const ProfileSettingsView: React.FC<Props> = ({
       setAuthLoading(true);
       await fbLogOut();
       setCurrentUser(null);
-    } catch (e) {
-      console.error(e);
+    } catch {
+      setCurrentUser(null);
     } finally {
       setAuthLoading(false);
     }

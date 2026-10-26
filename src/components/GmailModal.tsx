@@ -122,11 +122,15 @@ export const GmailModal: React.FC<GmailModalProps> = ({
     setIsLoadingAuth(true);
     setAuthError(null);
     try {
-      const { accessToken: token } = await authenticateWithGmail();
-      setAccessToken(token);
-      await loadProfile(token);
-    } catch (err: any) {
-      setAuthError(err?.message || 'Google Workspace Gmail sign-in was not completed.');
+      const result = await authenticateWithGmail();
+      if (result.accessToken) {
+        setAccessToken(result.accessToken);
+        await loadProfile(result.accessToken);
+      } else if (result.errorMessage) {
+        setAuthError(result.errorMessage);
+      }
+    } catch {
+      setAuthError('Google Workspace Gmail sign-in was not completed.');
     } finally {
       setIsLoadingAuth(false);
     }

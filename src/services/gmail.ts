@@ -8,20 +8,10 @@ import { GoogleAuthProvider, signInWithPopup, User } from 'firebase/auth';
 import { auth } from './firebase';
 
 export const GMAIL_SCOPES = [
-  'https://mail.google.com/',
-  'https://www.googleapis.com/auth/gmail.addons.current.action.compose',
-  'https://www.googleapis.com/auth/gmail.addons.current.message.action',
-  'https://www.googleapis.com/auth/gmail.addons.current.message.metadata',
-  'https://www.googleapis.com/auth/gmail.addons.current.message.readonly',
-  'https://www.googleapis.com/auth/gmail.compose',
-  'https://www.googleapis.com/auth/gmail.insert',
-  'https://www.googleapis.com/auth/gmail.labels',
-  'https://www.googleapis.com/auth/gmail.metadata',
-  'https://www.googleapis.com/auth/gmail.modify',
   'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/gmail.send',
-  'https://www.googleapis.com/auth/gmail.settings.basic',
-  'https://www.googleapis.com/auth/gmail.settings.sharing',
+  'https://www.googleapis.com/auth/gmail.compose',
+  'https://www.googleapis.com/auth/gmail.modify',
 ];
 
 // In-memory token cache (strictly not stored in localStorage)
@@ -35,10 +25,18 @@ export function setGmailAccessToken(token: string | null): void {
   inMemoryAccessToken = token;
 }
 
+export interface GmailAuthResult {
+  user: User | null;
+  accessToken: string | null;
+  cancelled?: boolean;
+  errorMessage?: string;
+}
+
 /**
- * Sign in or re-authenticate with Google requesting full Gmail scopes
+ * Sign in or re-authenticate with Google requesting Gmail Web OAuth scopes.
+ * Gracefully catches popup closure/cancellation so no raw FirebaseError is thrown.
  */
-export async function authenticateWithGmail(): Promise<{ user: User; accessToken: string }> {
+export async function authenticateWithGmail(): Promise<GmailAuthResult> {
   const provider = new GoogleAuthProvider();
   GMAIL_SCOPES.forEach((scope) => {
     provider.addScope(scope);
@@ -47,15 +45,56 @@ export async function authenticateWithGmail(): Promise<{ user: User; accessToken
     prompt: 'consent',
   });
 
-  const result = await signInWithPopup(auth, provider);
-  const credential = GoogleAuthProvider.credentialFromResult(result);
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
 
-  if (!credential?.accessToken) {
-    throw new Error('Failed to obtain Google Workspace access token with Gmail scopes.');
+    if (!credential?.accessToken) {
+      return {
+        user: result.user,
+        accessToken: null,
+        errorMessage: 'No Google Workspace access token was returned. Please try again and grant Gmail permissions.',
+      };
+    }
+
+    inMemoryAccessToken = credential.accessToken;
+    return { user: result.user, accessToken: credential.accessToken };
+  } catch (err: any) {
+    const code = String(err?.code || '').toLowerCase();
+    const msg = String(err?.message || '');
+    if (
+      code.includes('popup-closed-by-user') ||
+      code.includes('cancelled-popup-request') ||
+      msg.includes('popup-closed-by-user')
+    ) {
+      return {
+        user: null,
+        accessToken: null,
+        cancelled: true,
+        errorMessage: 'Google sign-in window was closed before completing authorization. Click below when ready to connect.',
+      };
+    }
+    if (code.includes('popup-blocked')) {
+      return {
+        user: null,
+        accessToken: null,
+        cancelled: true,
+        errorMessage: 'Sign-in popup was blocked by the browser. Please allow popups for this site and try again.',
+      };
+    }
+    if (code.includes('unauthorized-domain')) {
+      return {
+        user: null,
+        accessToken: null,
+        errorMessage: 'This preview domain is not yet listed in Firebase Authorized Domains for Google Workspace OAuth.',
+      };
+    }
+    return {
+      user: null,
+      accessToken: null,
+      errorMessage: 'Google Workspace Gmail sign-in could not be completed. Please try again.',
+    };
   }
-
-  inMemoryAccessToken = credential.accessToken;
-  return { user: result.user, accessToken: credential.accessToken };
 }
 
 export interface GmailProfile {

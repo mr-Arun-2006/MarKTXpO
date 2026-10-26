@@ -123,13 +123,20 @@ export const GoogleChatModal: React.FC<Props> = ({
     setConnecting(true);
     setApiError(null);
     try {
-      const { accessToken: token } = await connectGoogleChat();
-      setAccessToken(token);
-      await loadSpaces(token);
-    } catch (err: any) {
+      const result = await connectGoogleChat();
+      if (result.accessToken) {
+        setAccessToken(result.accessToken);
+        await loadSpaces(result.accessToken);
+      } else if (result.errorMessage) {
+        setApiError({
+          isConfigError: false,
+          message: result.errorMessage,
+        });
+      }
+    } catch {
       setApiError({
         isConfigError: false,
-        message: err?.message || 'Failed to authenticate with Google Chat scopes.',
+        message: 'Failed to authenticate with Google Chat scopes.',
       });
     } finally {
       setConnecting(false);

@@ -724,17 +724,39 @@ app.post('/api/sql/watchlist', requireAuth, async (req: AuthRequest, res) => {
   try {
     const uid = req.user?.uid;
     if (!uid) return res.status(401).json({ error: 'Unauthorized' });
-    const { ticker, stockName, exchange, targetPrice, notes } = req.body;
-    if (!ticker || !stockName) {
-      return res.status(400).json({ error: 'Ticker and stockName are required' });
+
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const ticker = typeof body.ticker === 'string' ? body.ticker.trim().toUpperCase() : '';
+    const stockName = typeof body.stockName === 'string' ? body.stockName.trim() : '';
+    const exchange = typeof body.exchange === 'string' ? body.exchange.trim().toUpperCase() : 'NSE';
+    const targetPrice = body.targetPrice;
+    const notes = body.notes;
+
+    if (!/^[A-Z0-9][A-Z0-9.&_-]{0,19}$/.test(ticker)) {
+      return res.status(400).json({ error: 'Ticker must be 1–20 characters and contain only valid symbol characters' });
     }
+    if (!stockName || stockName.length > 100) {
+      return res.status(400).json({ error: 'Stock name must contain 1–100 characters' });
+    }
+    if (!['NSE', 'BSE', 'BOTH'].includes(exchange)) {
+      return res.status(400).json({ error: 'Exchange must be NSE, BSE, or BOTH' });
+    }
+    if (targetPrice !== undefined && targetPrice !== null
+      && (typeof targetPrice !== 'number' || !Number.isFinite(targetPrice) || targetPrice <= 0)) {
+      return res.status(400).json({ error: 'Target price must be a positive finite number' });
+    }
+    if (notes !== undefined && notes !== null
+      && (typeof notes !== 'string' || notes.length > 500)) {
+      return res.status(400).json({ error: 'Notes must be a string of at most 500 characters' });
+    }
+
     const created = await addWatchlistItem({
       userId: uid,
       ticker,
       stockName,
-      exchange: exchange || 'NSE',
+      exchange,
       targetPrice: typeof targetPrice === 'number' ? targetPrice : undefined,
-      notes: notes || undefined,
+      notes: typeof notes === 'string' && notes.trim() ? notes.trim() : undefined,
     });
     return res.json({ success: true, item: created });
   } catch (err: any) {

@@ -141,7 +141,7 @@ function getCuratedStockNewsDigest(ticker: string, companyName: string, language
 }
 
 // 1. AI Stock Analysis Endpoint
-app.post('/api/ai/explain', async (req, res) => {
+app.post('/api/ai/explain', requireAuth, async (req: AuthRequest, res) => {
   const body = req.body && typeof req.body === 'object' ? req.body : {};
   const safeString = (value: unknown, fallback: string, maxLength: number) =>
     typeof value === 'string' && value.trim() ? value.trim().slice(0, maxLength) : fallback;
@@ -262,7 +262,7 @@ Do not invent current news, macroeconomic catalysts, institutional flows, delive
 });
 
 // 2. AI Sentiment Analysis
-app.post('/api/ai/sentiment', async (req, res) => {
+app.post('/api/ai/sentiment', requireAuth, async (req: AuthRequest, res) => {
   const { ticker, companyName, headlines, userApiKey, language = 'English' } = req.body || {};
   const normalizedTicker = typeof ticker === 'string' ? ticker.slice(0, 20).toUpperCase() : 'STOCK';
   const normalizedCompany = typeof companyName === 'string' ? companyName.slice(0, 120) : normalizedTicker;
@@ -319,118 +319,125 @@ Return JSON with: sentimentScore (-100 to 100), sentimentLabel (Very Bullish/Bul
 });
 
 // 3. AI News Digest Endpoint with Google Search Grounding & 1-sentence market impact
-app.post('/api/ai/news-digest', async (req, res) => {
+app.post('/api/ai/news-digest', requireAuth, async (req: AuthRequest, res) => {
   const body = req.body && typeof req.body === 'object' ? req.body : {};
   const ticker = (typeof body.ticker === 'string' ? body.ticker : 'STOCK').trim().slice(0, 20).toUpperCase() || 'STOCK';
   const companyName = (typeof body.companyName === 'string' ? body.companyName : ticker).trim().slice(0, 120) || ticker;
   const language = (typeof body.language === 'string' ? body.language : 'English').trim().slice(0, 40) || 'English';
   const userApiKey = typeof body.userApiKey === 'string' ? body.userApiKey : undefined;
 
-  // 1. Check in-memory cache first to avoid repetitive API calls and rate-limiting
-  const cacheKey = `news_${ticker}_${language}`;
-  const cached = newsDigestCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now() && cached.data?.dataAvailable !== false) {
-    return res.json(cached.data);
+  if (!req.user?.uid) {
+    return res.status(401).json({ dataAvailable: false, headlines: [], sources: [], error: 'Sign in again to retrieve news.' });
   }
 
+  // News generation is deliberately not shared or cached across users because each
+  // request must use the signed-in user's own API key.
   const ai = getGeminiClient(userApiKey);
   if (!ai) {
-    return res.json(getCuratedStockNewsDigest(ticker, companyName, language));
+    return res.status(400).json({
+      dataAvailable: false,
+      headlines: [],
+      sources: [],
+      error: 'A valid user-supplied Gemini API key is required. No sample news is returned.',
+    });
   }
 
   try {
     const prompt = `
-Find the latest financial news, quarterly earnings, corporate developments, and market events for Indian equity: ${companyName} (${ticker}), listed on NSE and BSE.
-Use Google Search grounding where available. Return only headlines with actual source URLs surfaced by grounding. Do not create article titles, source names, publication times, or factual claims when sources are unavailable.
-Return a structured JSON object with this exact schema:
+Find current financial news, earnings or corporate announcements for Indian equity ${companyName} (${ticker}).
+Use Google Search grounding. Return only headlines supported by the grounding references actually available in this request.
+Do not invent article titles, source names, publication times or financial facts. If no current sources are available, return an empty headlines array.
+Respond entirely in ${language} using this JSON schema:
 {
   "ticker": "${ticker}",
   "companyName": "${companyName}",
-  "oneSentenceImpact": "A single sharp, insightful sentence summarizing the direct potential market impact of this news on the stock price and trader sentiment in ${language}.",
+  "oneSentenceImpact": "A concise evidence-based impact summary, or an explicit unavailable statement.",
   "overallSentiment": "Bullish" | "Bearish" | "Neutral",
   "headlines": [
     {
-      "title": "Concise headline string",
-      "source": "Source name (e.g. Economic Times, Moneycontrol, Livemint, CNBC TV18, Reuters)",
-      "timeAgo": "e.g. 2 hours ago or 1 day ago",
-      "snippet": "1 sentence takeaway of the news item",
-      "sentimentTag": "Bullish" | "Neutral" | "Bearish",
-      "impactScore": number between -100 and +100
+      "title": "Source-backed headline",
+      "source": "Source name",
+      "timeAgo": "Publication age only if source metadata provides it",
+      "snippet": "Brief source-supported summary",
+      "sentimentTag": "Bullish" | "Bearish" | "Neutral",
+      "impactScore": -100 to 100
     }
   ]
 }
+Do not assert FII/DII flows, official index movement, price targets, delivery percentage or order-book data unless grounding sources support the specific claim.
 `;
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: 'application/json',
+      },
+    });
 
-    let response: any = null;
+    let parsed: any = null;
     try {
-      // Step 1: Attempt with Google Search Grounding
-      response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: {
-          tools: [{ googleSearch: {} }],
-          responseMimeType: 'application/json',
-        },
-      });
-    } catch (_searchQuotaErr: any) {
-      // Step 2: If Search Grounding is rate-limited (429) or unavailable, fallback to fast text generation
-      try {
-        response = await ai.models.generateContent({
-          model: 'gemini-3.8-flash',
-          contents: prompt,
-          config: {
-            responseMimeType: 'application/json',
-          },
-        });
-      } catch (_textQuotaErr: any) {
-        // Step 3: Quota exhausted; smoothly return institutional curated intelligence
-        response = null;
+      parsed = JSON.parse(response.text || '');
+    } catch {
+      const match = response.text?.match(/\{[\s\S]*\}/);
+      if (match) {
+        try { parsed = JSON.parse(match[0]); } catch { parsed = null; }
       }
     }
 
-    if (!response || !response.text) {
-      const curated = getCuratedStockNewsDigest(ticker, companyName, language);
-      return res.json(curated);
-    }
-
-    let parsedData: any = {};
-    try {
-      parsedData = JSON.parse(response.text || '{}');
-    } catch {
-      const match = response.text?.match(/\{[\s\S]*\}/);
-      if (match) parsedData = JSON.parse(match[0]);
-    }
-
-    // Attach search grounding citations if present
-    const searchChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-    if (searchChunks && Array.isArray(searchChunks)) {
-      parsedData.sources = searchChunks
-        .map((c: any) => ({
-          title: c.web?.title,
-          url: c.web?.uri,
+    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+    const sources = Array.isArray(chunks)
+      ? chunks.map((chunk: any) => ({
+          title: typeof chunk?.web?.title === 'string' ? chunk.web.title.slice(0, 200) : '',
+          url: typeof chunk?.web?.uri === 'string' ? chunk.web.uri : '',
+        })).filter((source: any) => /^https:\/\//i.test(source.url)).slice(0, 8)
+      : [];
+    const headlines = Array.isArray(parsed?.headlines)
+      ? parsed.headlines.filter((item: any) => typeof item?.title === 'string' && item.title.trim()).slice(0, 20).map((item: any) => ({
+          title: item.title.slice(0, 500),
+          source: typeof item.source === 'string' ? item.source.slice(0, 100) : 'Source name unavailable',
+          timeAgo: typeof item.timeAgo === 'string' ? item.timeAgo.slice(0, 80) : 'Publication time unavailable',
+          snippet: typeof item.snippet === 'string' ? item.snippet.slice(0, 800) : '',
+          sentimentTag: ['Bullish', 'Bearish', 'Neutral'].includes(item.sentimentTag) ? item.sentimentTag : 'Neutral',
+          impactScore: typeof item.impactScore === 'number' && Number.isFinite(item.impactScore)
+            ? Math.max(-100, Math.min(100, item.impactScore))
+            : 0,
         }))
-        .filter((s: any) => s.url);
+      : [];
+
+    if (headlines.length === 0 || sources.length === 0) {
+      return res.status(503).json({
+        dataAvailable: false,
+        headlines: [],
+        sources: [],
+        error: 'No current headlines with grounded HTTPS source links were returned.',
+      });
     }
 
-    // A current-news result is only considered available when headlines and
-    // source URLs are present. Do not merge ungrounded model prose into a fallback.
-    if (!parsedData.oneSentenceImpact || !Array.isArray(parsedData.headlines) ||
-        parsedData.headlines.length === 0 || !Array.isArray(parsedData.sources) ||
-        parsedData.sources.length === 0) {
-      return res.json(getCuratedStockNewsDigest(ticker, companyName, language));
-    }
-
-    parsedData.dataAvailable = true;
-    parsedData.dataStatus = 'GROUNDED_NEWS';
-    setBoundedCache(newsDigestCache, cacheKey, parsedData, 15 * 60 * 1000);
-    return res.json(parsedData);
-  } catch (_generalErr: any) {
-    return res.json(getCuratedStockNewsDigest(ticker, companyName, language));
+    return res.json({
+      ticker,
+      companyName,
+      oneSentenceImpact: typeof parsed?.oneSentenceImpact === 'string' ? parsed.oneSentenceImpact.slice(0, 1000) : 'Headline sources returned; impact summary unavailable.',
+      overallSentiment: ['Bullish', 'Bearish', 'Neutral'].includes(parsed?.overallSentiment) ? parsed.overallSentiment : 'Neutral',
+      headlines,
+      sources,
+      dataAvailable: true,
+      dataStatus: 'GROUNDED_NEWS',
+      retrievedAt: new Date().toISOString(),
+    });
+  } catch {
+    console.warn('[AI News] Grounded request failed; no sample headlines are substituted.');
+    return res.status(503).json({
+      dataAvailable: false,
+      headlines: [],
+      sources: [],
+      error: 'Current grounded news is unavailable. Retry later; no sample data is used.',
+    });
   }
 });
 
 // 4. AI Strategy & Backtesting Audit Endpoint
-app.post('/api/ai/strategy-audit', async (req, res) => {
+app.post('/api/ai/strategy-audit', requireAuth, async (req: AuthRequest, res) => {
   const { strategyName, rules, backtestMetrics, userApiKey, language = 'English' } = req.body || {};
   const fallback = {
     audit: 'AI strategy audit is unavailable. No claim about profitability, statistical edge, or expected drawdown has been generated. Validate the backtest against cleaned, survivorship-bias-aware historical data and include fees, slippage, and out-of-sample testing.',
@@ -466,7 +473,7 @@ Discuss data leakage, look-ahead bias, survivorship bias, transaction fees, slip
 });
 
 // 5. AI Portfolio Risk Management Endpoint
-app.post('/api/ai/portfolio-risk', async (req, res) => {
+app.post('/api/ai/portfolio-risk', requireAuth, async (req: AuthRequest, res) => {
   const { portfolio, totalValue, userApiKey, language = 'English' } = req.body || {};
   const fallback = {
     riskAnalysis: 'Portfolio risk analysis is unavailable. Beta, diversification, and VaR have not been calculated. Supply verified holdings and historical return series before relying on numerical risk estimates.',
@@ -505,7 +512,7 @@ Explain what can and cannot be assessed from the supplied data. Do not present n
 });
 
 // 6. Gemini API Key Tester & Validator
-app.post('/api/ai/test-key', async (req, res) => {
+app.post('/api/ai/test-key', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { customApiKey, model = 'gemini-3.8-flash' } = req.body;
     const keyToTest = customApiKey?.trim();
@@ -551,7 +558,7 @@ app.post('/api/ai/test-key', async (req, res) => {
 });
 
 // 7. Multi-turn Gemini Chatbot Endpoint
-app.post('/api/ai/chat', async (req, res) => {
+app.post('/api/ai/chat', requireAuth, async (req: AuthRequest, res) => {
   try {
     const {
       messages = [],
@@ -802,7 +809,7 @@ app.get('/api/market/benchmarks', async (req, res) => {
   }
 });
 
-app.get('/api/market/history', async (req, res) => {
+app.get('/api/market/history', requireAuth, async (req: AuthRequest, res) => {
   try {
     const ticker = (typeof req.query.ticker === 'string' ? req.query.ticker : 'RELIANCE').toUpperCase();
     const range = (req.query.range as string) || '3mo';
@@ -831,7 +838,7 @@ app.get('/api/market/history', async (req, res) => {
 });
 
 // Historical dividend events only. Future announcement/record/payment dates are not inferred.
-app.get('/api/market/dividends', async (req, res) => {
+app.get('/api/market/dividends', requireAuth, async (req: AuthRequest, res) => {
   const raw = typeof req.query.tickers === 'string'
     ? req.query.tickers
     : (typeof req.query.ticker === 'string' ? req.query.ticker : '');

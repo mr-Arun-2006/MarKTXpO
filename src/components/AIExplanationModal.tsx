@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StockData, SupportedLanguage, RuleStep } from '../types/market';
 import { translations } from '../i18n/translations';
+import { auth } from '../services/firebase';
 import {
   Sparkles,
   CheckCircle2,
@@ -109,7 +110,7 @@ export const AIExplanationModal: React.FC<Props> = ({
 
       const res = await fetch('/api/ai/explain', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await auth.currentUser?.getIdToken() || '') },
         body: JSON.stringify({
           ticker: stock.ticker,
           companyName: stock.name,

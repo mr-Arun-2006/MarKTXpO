@@ -22,6 +22,7 @@ import {
   Check,
 } from 'lucide-react';
 import { SupportedLanguage } from '../types/market';
+import { auth } from '../services/firebase';
 
 export interface ChatMessage {
   id: string;
@@ -217,7 +218,7 @@ Feel free to ask a question below or choose a starter prompt!`,
       const activeModelToTest = isCustomModel && customModelName.trim() ? customModelName.trim() : selectedModel;
       const res = await fetch('/api/ai/test-key', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await auth.currentUser?.getIdToken() || '') },
         body: JSON.stringify({
           customApiKey: localApiKey.trim(),
           model: activeModelToTest,

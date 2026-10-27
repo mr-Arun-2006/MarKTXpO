@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StockData, SupportedLanguage } from '../types/market';
+import { auth } from '../services/firebase';
 import {
   Newspaper,
   Sparkles,
@@ -39,29 +40,19 @@ interface NewsDigestData {
   dataStatus?: string;
 }
 
-// Cache successful grounded results only; unavailable responses must not mask a later retry.
-const clientDigestCache = new Map<string, NewsDigestData>();
-const MAX_CLIENT_DIGEST_CACHE_ENTRIES = 100;
-
 export const AINewsDigest: React.FC<Props> = ({ stock, language, customApiKey }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [digest, setDigest] = useState<NewsDigestData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchNewsDigest = async (forceRefresh = false) => {
-    const cacheKey = `${stock.ticker}_${language}`;
-    if (!forceRefresh && clientDigestCache.has(cacheKey)) {
-      setDigest(clientDigestCache.get(cacheKey)!);
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     setError(null);
+    setDigest(null);
     try {
       const res = await fetch('/api/ai/news-digest', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await auth.currentUser?.getIdToken() || '') },
         body: JSON.stringify({
           ticker: stock.ticker,
           companyName: stock.name,
@@ -81,19 +72,15 @@ export const AINewsDigest: React.FC<Props> = ({ stock, language, customApiKey })
         }),
       });
 
-      if (!res.ok) throw new Error('Failed to fetch AI news digest');
       const data = await res.json() as NewsDigestData;
-      if (data.dataAvailable !== false) {
-        if (clientDigestCache.size >= MAX_CLIENT_DIGEST_CACHE_ENTRIES && !clientDigestCache.has(cacheKey)) {
-          const oldestKey = clientDigestCache.keys().next().value;
-          if (oldestKey !== undefined) clientDigestCache.delete(oldestKey);
-        }
-        clientDigestCache.set(cacheKey, data);
+      if (!res.ok || data.dataAvailable !== true || !Array.isArray(data.sources) || data.sources.length === 0 || !Array.isArray(data.headlines) || data.headlines.length === 0) {
+        throw new Error((data as any)?.error || 'No source-grounded news is available. No sample headlines are shown.');
       }
       setDigest(data);
     } catch (err: any) {
       console.warn('[News Digest] Gracefully handling fetch:', err?.message);
-      setError(err.message || 'Error retrieving financial headlines');
+      setDigest(null);
+      setError(err.message || 'Error retrieving grounded financial headlines');
     } finally {
       setLoading(false);
     }
@@ -101,7 +88,7 @@ export const AINewsDigest: React.FC<Props> = ({ stock, language, customApiKey })
 
   useEffect(() => {
     fetchNewsDigest(false);
-  }, [stock.ticker, language]);
+  }, [stock.ticker, stock.name, language, customApiKey]);
 
   return (
     <div className="p-5 sm:p-6 rounded-2xl bg-[#1A1816] border border-[#D96B43]/20 shadow-xl space-y-5 text-[#F7EEDB]">

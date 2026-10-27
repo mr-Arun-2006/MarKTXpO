@@ -110,7 +110,12 @@ export const WatchlistDividendView: React.FC<Props> = ({
     setDividendError(null);
     try {
       const params = new URLSearchParams({ tickers: tickers.join(','), range: '5y' });
-      const response = await fetch('/api/market/dividends?' + params.toString(), { cache: 'no-store' });
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('Sign in again to retrieve historical dividend events.');
+      const response = await fetch('/api/market/dividends?' + params.toString(), {
+        headers: { Authorization: 'Bearer ' + token },
+        cache: 'no-store',
+      });
       const payload = await response.json() as DividendApiResponse;
       if (!response.ok || payload.success !== true) throw new Error(payload.error || 'Historical dividend event request failed.');
       setDividendEvents(Array.isArray(payload.dividends) ? payload.dividends : []);

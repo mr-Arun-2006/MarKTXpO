@@ -44,17 +44,26 @@ export const DashboardView: React.FC<Props> = ({
   language,
   customApiKey,
 }) => {
-  const [filterSentiment, setFilterSentiment] = useState<'ALL' | 'BULLISH' | 'ARBITRAGE'>('ALL');
+  const [filterSentiment, setFilterSentiment] = useState<'ALL' | 'BULLISH' | 'PRICE_GAP'>('ALL');
   const [showHeatmap, setShowHeatmap] = useState<boolean>(true);
   const [newsViewTab, setNewsViewTab] = useState<'MARKET_NEWS' | 'AI_DIGEST'>('MARKET_NEWS');
   const t = translations[language];
 
-  // Rank opportunities by AI confidence
-  const rankedStocks = [...stocks].sort((a, b) => b.sentiment.confidence - a.sentiment.confidence);
+  // Ranking is based only on observed quote/technical values. It is not an AI forecast.
+  const priceMomentumScore = (stock: StockData) => [
+    stock.changePercent > 0,
+    stock.currentPrice > stock.dma20,
+    stock.dma20 > stock.dma50,
+    stock.macd.histogram > 0,
+  ].filter(Boolean).length;
 
-  const filteredOpportunities = rankedStocks.filter((s) => {
-    if (filterSentiment === 'BULLISH') return s.sentiment.score >= 65;
-    if (filterSentiment === 'ARBITRAGE') return Math.abs(s.spreadPercent) >= 0.03;
+  const rankedStocks = [...stocks].sort((a, b) =>
+    priceMomentumScore(b) - priceMomentumScore(a) || b.changePercent - a.changePercent
+  );
+
+  const filteredOpportunities = rankedStocks.filter((stock) => {
+    if (filterSentiment === 'BULLISH') return priceMomentumScore(stock) >= 3;
+    if (filterSentiment === 'PRICE_GAP') return Math.abs(stock.spreadPercent) >= 0.03;
     return true;
   });
 
@@ -72,7 +81,7 @@ export const DashboardView: React.FC<Props> = ({
             </span>
           </div>
           <p className="text-xs text-[#F7EEDB]/65 mt-1">
-            Dual-exchange liquidity surveillance, deterministic quantitative validation, and Gemini 3.8 Flash synthesis.
+            Third-party exchange quotes and historical technical indicators. Official market depth, delivery statistics, FII/DII flows and verified social/news sentiment are not connected.
           </p>
         </div>
 
@@ -209,7 +218,7 @@ export const DashboardView: React.FC<Props> = ({
                 <div className="flex items-center gap-2 text-xs text-[#F7EEDB]/60 flex-wrap">
                   <span>{selectedStock.name}</span>
                   <span>•</span>
-                  <span className="text-[#8CB4E0] font-mono text-[11px]">Official Feed: Yahoo &amp; Google Finance Verified</span>
+                  <span className="text-[#8CB4E0] font-mono text-[11px]">Yahoo Finance quote/history metadata · third-party reference data</span>
                 </div>
               </div>
 
@@ -288,7 +297,7 @@ export const DashboardView: React.FC<Props> = ({
               <div className="text-xs font-bold text-[#F7EEDB] font-mono mt-1">
                 {selectedStock.low52 != null && selectedStock.high52 != null ? `₹${selectedStock.low52} - ₹${selectedStock.high52}` : 'N/A'}
               </div>
-              <span className="text-[10px] text-[#F7EEDB]/50">P/E: {selectedStock.pe} · Beta: {selectedStock.beta}</span>
+              <span className="text-[10px] text-[#F7EEDB]/50">Registry reference estimates only · P/E {selectedStock.pe} · Beta {selectedStock.beta}</span>
             </div>
 
             <div className="p-3.5 rounded-xl bg-[#1A1816] border border-[#22C55E]/30 hover:border-[#22C55E] hover:shadow-[0_0_14px_rgba(34,197,94,0.25)] transition-all text-xs">
@@ -313,7 +322,7 @@ export const DashboardView: React.FC<Props> = ({
                   }`}
                 >
                   <Newspaper className="w-3.5 h-3.5" />
-                  <span>Market News (ET · Moneycontrol · Mint · BS)</span>
+                  <span>Source-Grounded Market News</span>
                 </button>
 
                 <button
@@ -363,7 +372,7 @@ export const DashboardView: React.FC<Props> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Brain className="w-4 h-4 text-[#D96B43]" />
-                <h3 className="text-sm font-bold text-[#F7EEDB]">AI Opportunity Ranker</h3>
+                <h3 className="text-sm font-bold text-[#F7EEDB]">Price-Momentum Ranker</h3>
               </div>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#8CB4E0]/15 text-[#8CB4E0] font-mono font-semibold border border-[#8CB4E0]/40 shadow-[0_0_8px_rgba(140,180,224,0.2)]">
                 PROPRIETARY
@@ -372,9 +381,9 @@ export const DashboardView: React.FC<Props> = ({
 
             {/* Filter pills */}
             <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#131211] border border-[#D96B43]/30 text-xs">
-              {(['ALL', 'BULLISH', 'ARBITRAGE'] as const).map((filter) => (
+              {(['ALL', 'BULLISH', 'PRICE_GAP'] as const).map((filter) => (
                 <button
-                  key={filter}
+                  key={filter === 'PRICE_GAP' ? 'PRICE GAP' : filter}
                   onClick={() => setFilterSentiment(filter)}
                   className={`flex-1 py-1 rounded-lg text-center transition font-semibold ${
                     filterSentiment === filter
@@ -407,12 +416,12 @@ export const DashboardView: React.FC<Props> = ({
                         <span className="font-bold text-xs text-[#F7EEDB]">{stock.ticker}</span>
                         <span
                           className={`text-[10px] px-1.5 py-0.2 rounded font-semibold border ${
-                            stock.sentiment.confidence >= 90
+                            priceMomentumScore(stock) >= 3
                               ? 'bg-[#8CB4E0]/20 text-[#8CB4E0] border-[#8CB4E0]/50 shadow-[0_0_6px_rgba(140,180,224,0.3)]'
                               : 'bg-[#D96B43]/15 text-[#D96B43] border-[#D96B43]/40 shadow-[0_0_6px_rgba(217,107,67,0.3)]'
                           }`}
                         >
-                          {stock.sentiment.confidence}% Conf.
+                          Momentum {priceMomentumScore(stock)}/4
                         </span>
                       </div>
                       <span className="text-xs font-mono font-bold text-[#F7EEDB]">
@@ -439,10 +448,10 @@ export const DashboardView: React.FC<Props> = ({
                       <StockSparkline data={stock.history} height={24} isPositive={isPos} />
                     </div>
 
-                    {/* Arbitrage and AI catalyst footer */}
+                    {/* Indicative price gap and explanation footer */}
                     <div className="flex items-center justify-between text-[10px] pt-1 border-t border-[#D96B43]/10">
                       <span className="text-[#F7EEDB]/60">
-                        Spread: <strong className="text-[#8CB4E0] font-mono">{stock.spreadPercent}%</strong>
+                        Price gap: <strong className="text-[#8CB4E0] font-mono">{stock.spreadPercent}%</strong>
                       </span>
                       <button
                         onClick={(e) => {
@@ -461,12 +470,12 @@ export const DashboardView: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Real-Time Market Shift Alerts */}
+          {/* Quote-derived market shift alerts */}
           <div className="p-5 rounded-2xl bg-[#1A1816] border border-[#D96B43]/20 shadow-xl space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-[#D96B43]" />
-                <h3 className="text-sm font-bold text-[#F7EEDB]">Automated Shift Alerts</h3>
+                <h3 className="text-sm font-bold text-[#F7EEDB]">Quote-Derived Shift Alerts</h3>
               </div>
               <button
                 onClick={() => setActiveView('alerts')}

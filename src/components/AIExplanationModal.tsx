@@ -284,10 +284,16 @@ export const AIExplanationModal: React.FC<Props> = ({
                   <div className="flex items-center justify-between pb-3 border-b border-[#D96B43]/15">
                     <div className="flex items-center gap-2 text-xs text-[#F7EEDB]/70">
                       <span className="w-2 h-2 rounded-full bg-[#D96B43] animate-ping"></span>
-                      <span>Institutional Thesis</span>
+                      <span>Technical / News Evidence</span>
                       <span>·</span>
-                      <span className="text-[#F7EEDB] font-semibold">{stock.sentiment.label}</span>
-                      <span>({stock.sentiment.confidence}% Confidence)</span>
+                      {stock.sentiment.confidence > 0 ? (
+                        <>
+                          <span className="text-[#F7EEDB] font-semibold">{stock.sentiment.label}</span>
+                          <span>({stock.sentiment.confidence}% model confidence)</span>
+                        </>
+                      ) : (
+                        <span className="text-[#F7EEDB]/45">Verified sentiment source unavailable</span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2">

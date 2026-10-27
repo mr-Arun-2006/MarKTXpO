@@ -26,14 +26,7 @@ interface BenchmarkIndex {
   changePercent: number;
 }
 
-const BENCHMARKS: BenchmarkIndex[] = [
-  { name: 'NIFTY 50', exchange: 'NSE', value: 24852.15, change: 104.2, changePercent: 0.42 },
-  { name: 'SENSEX', exchange: 'BSE', value: 81330.4, change: 318.5, changePercent: 0.39 },
-  { name: 'BANK NIFTY', exchange: 'NSE', value: 52210.8, change: 368.1, changePercent: 0.71 },
-  { name: 'BSE 100', exchange: 'BSE', value: 25684.2, change: 92.4, changePercent: 0.36 },
-  { name: 'NIFTY IT', exchange: 'NSE', value: 38450.2, change: -68.4, changePercent: -0.18 },
-  { name: 'INDIA VIX', exchange: 'NSE', value: 12.85, change: -0.42, changePercent: -3.16 },
-];
+
 
 export const MarketTickerTape: React.FC<Props> = ({
   stocks,
@@ -43,10 +36,9 @@ export const MarketTickerTape: React.FC<Props> = ({
   // Movement is strictly Right to Left (RTL) at 0.5s speed as requested
   const [isPaused, setIsPaused] = useState(false);
   const [speedMode, setSpeedMode] = useState<'0.5s' | '0.25s' | '1.0s'>('0.5s');
-  const [benchmarks, setBenchmarks] = useState<BenchmarkIndex[]>(BENCHMARKS);
-  const [isOfficialLive, setIsOfficialLive] = useState(false);
+  const [benchmarks, setBenchmarks] = useState<BenchmarkIndex[]>([]);
 
-  // Fetch real official benchmark index quotes on mount & periodically
+  // Fetch third-party reference benchmark quotes on mount and periodically
   React.useEffect(() => {
     const loadBenchmarks = () => {
       fetch('/api/market/benchmarks')
@@ -54,7 +46,6 @@ export const MarketTickerTape: React.FC<Props> = ({
         .then((data) => {
           if (data.benchmarks && Array.isArray(data.benchmarks) && data.benchmarks.length > 0) {
             setBenchmarks(data.benchmarks);
-            setIsOfficialLive(true);
           }
         })
         .catch(() => {});
@@ -79,7 +70,7 @@ export const MarketTickerTape: React.FC<Props> = ({
   const renderStockItem = (stock: StockData, keySuffix: string | number) => {
     const isBull = stock.change >= 0;
     const spreadAbs = Math.abs(stock.spreadPercent);
-    const hasArbitrage = spreadAbs >= 0.03;
+    const hasPriceGap = spreadAbs >= 0.03;
 
     return (
       <button
@@ -118,12 +109,12 @@ export const MarketTickerTape: React.FC<Props> = ({
           hourlyTrend={stock.hourlyTrend}
           compact
         />
-        {hasArbitrage && (
+        {hasPriceGap && (
           <span
             className="text-[10px] px-1.5 py-0.2 rounded bg-[#D96B43]/20 text-[#D96B43] border border-[#D96B43]/50 font-mono font-bold hover:shadow-[0_0_8px_rgba(217,107,67,0.4)] transition"
-            title={`Arbitrage spread: ₹${Math.abs(stock.nsePrice - stock.bsePrice).toFixed(2)} between NSE & BSE`}
+            title={`Indicative third-party quote gap: ₹${Math.abs(stock.nsePrice - stock.bsePrice).toFixed(2)}; not a verified executable arbitrage`}
           >
-            {stock.spreadPercent > 0 ? 'NSE > BSE' : 'BSE > NSE'} ({spreadAbs.toFixed(2)}%)
+            Quote gap: {spreadAbs.toFixed(2)}%
           </span>
         )}
       </button>
@@ -228,9 +219,9 @@ export const MarketTickerTape: React.FC<Props> = ({
 
         {/* Right Info Box with Border Visual Color Effect */}
         <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-[#131211] border-l border-[#D96B43]/30 shrink-0 z-10 text-[11px] font-mono text-[#F7EEDB]/80">
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#1A1816] border border-[#22C55E]/40 shadow-[0_0_8px_rgba(34,197,94,0.2)]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-ping"></span>
-            <span className="text-[#22C55E] font-bold text-[10px]">REAL OFFICIAL FEED</span>
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#1A1816] border border-[#D96B43]/40 shadow-[0_0_8px_rgba(217,107,67,0.2)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#D96B43]"></span>
+            <span className="text-[#22C55E] font-bold text-[10px]">THIRD-PARTY QUOTES</span>
           </div>
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#1A1816] border border-[#D96B43]/30 shadow-[0_0_8px_rgba(217,107,67,0.15)]">
             <Activity className="w-3 h-3 text-[#D96B43]" />

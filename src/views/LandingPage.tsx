@@ -225,14 +225,14 @@ export const LandingPage: React.FC<Props> = ({
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-4 h-4 text-[#22C55E] shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-[#F7EEDB]">Transparent Quantitative Auditing:</strong> Every trade setup is evaluated against deterministic indicators (RSI, 50/200 DMA, MACD, Volume) before AI commentary.
+                    <strong className="text-[#F7EEDB]">Transparent Quantitative Auditing:</strong> Technical evidence is calculated from fetched daily candles (RSI, moving averages, MACD and volume where available). AI commentary is separate and can be unavailable when a user's key or search sources are missing.
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-4 h-4 text-[#22C55E] shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-[#F7EEDB]">Custom Sentiment Models:</strong> Analyzes earnings commentary, media sentiment, and institutional flows to rank trade opportunities by confidence (90%+).
+                    <strong className="text-[#F7EEDB]">Source-Grounded AI Explanations:</strong> Uses your Gemini API key for evidence-based explanations and grounded news when sources are returned. FII/DII flows and social sentiment are not connected unless a verified data provider is configured.
                   </div>
                 </div>
 

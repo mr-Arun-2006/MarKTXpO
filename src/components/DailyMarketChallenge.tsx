@@ -323,6 +323,11 @@ export const DailyMarketChallenge: React.FC<Props> = ({
         </div>
       </div>
 
+      {/* Educational simulation — not live market reporting */}
+      <div className="rounded-xl border border-[#8CB4E0]/25 bg-[#171A1D] px-4 py-3 text-xs leading-5 text-[#F7EEDB]/70">
+        <strong className="text-[#BFD6F2]">Practice simulation:</strong> scenario prices, candles, volumes and event narratives in this game are fictional educational inputs. They are not live market prices, official exchange data, verified FII/DII flows, or current news. Use EOD Analysis for source-labelled historical data.
+      </div>
+
       {/* Main Challenge Card */}
       <div className="p-6 rounded-2xl bg-[#1A1816] border border-[#D96B43]/30 shadow-xl space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D96B43]/15 pb-4">

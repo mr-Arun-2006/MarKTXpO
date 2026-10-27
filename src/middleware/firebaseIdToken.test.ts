@@ -12,18 +12,16 @@ function encodeJson(value: unknown): string {
 function makeToken(
   header: Record<string, unknown>,
   claims: Record<string, unknown>,
-  privateKey?: ReturnType<typeof generateKeyPairSync>['privateKey'],
-  signerOverride?: unknown,
+  privateKey?: import('node:crypto').KeyObject,
 ): string {
   const encodedHeader = encodeJson(header);
   const encodedClaims = encodeJson(claims);
   const message = `${encodedHeader}.${encodedClaims}`;
-  const key = (signerOverride ?? privateKey) as import('node:crypto').KeyObject;
-  if (!key) return `${message}.c2ln`;
+  if (!privateKey) return `${message}.c2ln`;
   const signer = createSign('RSA-SHA256');
   signer.update(message);
   signer.end();
-  return `${message}.${signer.sign(key).toString('base64url')}`;
+  return `${message}.${signer.sign(privateKey).toString('base64url')}`;
 }
 
 function validClaims(overrides: Record<string, unknown> = {}) {

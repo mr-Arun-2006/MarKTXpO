@@ -5,6 +5,14 @@ import { isDevelopmentFallbackAuthEnabled } from './authPolicy.ts';
 test('fallback authentication is disabled by default', () => {
   assert.equal(isDevelopmentFallbackAuthEnabled({}), false);
   assert.equal(isDevelopmentFallbackAuthEnabled({ NODE_ENV: 'development' }), false);
+  assert.equal(isDevelopmentFallbackAuthEnabled({
+    NODE_ENV: 'test',
+    ALLOW_INSECURE_FALLBACK_AUTH: 'true',
+  }), false);
+  assert.equal(isDevelopmentFallbackAuthEnabled({
+    NODE_ENV: 'preview',
+    ALLOW_INSECURE_FALLBACK_AUTH: 'true',
+  }), false);
 });
 
 test('fallback authentication requires an explicit non-production opt-in', () => {

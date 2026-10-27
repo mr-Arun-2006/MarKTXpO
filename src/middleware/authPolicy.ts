@@ -10,6 +10,6 @@ type AuthEnvironment = {
 export function isDevelopmentFallbackAuthEnabled(
   environment: AuthEnvironment = process.env,
 ): boolean {
-  return environment.NODE_ENV !== 'production'
+  return environment.NODE_ENV === 'development'
     && environment.ALLOW_INSECURE_FALLBACK_AUTH === 'true';
 }

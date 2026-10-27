@@ -81,7 +81,7 @@ export const RegisterUserModal: React.FC<Props> = ({
         };
 
         await registerNewUser(input);
-        setSuccessMsg('Account registered! Trader profile, starter watchlists & +100 bonus XP provisioned.');
+        setSuccessMsg('Account registered! Your trader profile and personal game-progress record are ready.');
       } else {
         if (!email || !password) {
           setErrorMsg('Please enter both email and password.');
@@ -341,6 +341,7 @@ export const RegisterUserModal: React.FC<Props> = ({
                   <input
                     type="number"
                     min="100000"
+                    max="10000000"
                     step="50000"
                     value={virtualCapital}
                     onChange={(e) => setVirtualCapital(Number(e.target.value))}
@@ -359,7 +360,7 @@ export const RegisterUserModal: React.FC<Props> = ({
                   <span>Automatic Starter Package Included</span>
                 </div>
                 <p className="text-[11px] text-[#F7EEDB]/70">
-                  New registered profiles instantly receive +100 Welcome Academy XP and pre-provisioned starter watchlists for Reliance, TCS, and HDFC Bank stored in Firestore.
+                  New registered profiles receive a personal trader profile and game-progress record. The watchlist starts empty so only stocks you add are saved.
                 </p>
               </div>
             </>

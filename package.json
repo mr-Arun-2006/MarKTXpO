@@ -12,7 +12,8 @@
     "start": "tsx server.ts",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/middleware/authPolicy.test.ts src/utils/eodTechnicalAnalysis.test.ts src/utils/historicalBacktest.test.ts"
+    "test": "tsx --test src/middleware/authPolicy.test.ts src/utils/eodTechnicalAnalysis.test.ts src/utils/historicalBacktest.test.ts",
+    "db:migrate": "tsx scripts/migrate-db.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

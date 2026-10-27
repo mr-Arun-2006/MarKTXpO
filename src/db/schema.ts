@@ -1,7 +1,9 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
+  check,
   doublePrecision,
+  index,
   integer,
   pgTable,
   serial,
@@ -17,11 +19,14 @@ export const users = pgTable('users', {
   displayName: text('display_name'),
   role: text('role').default('user').notNull(),
   language: text('language').default('en').notNull(),
-  totalXP: integer('total_xp').default(100).notNull(),
+  totalXP: integer('total_xp').default(0).notNull(),
   virtualCapital: doublePrecision('virtual_capital').default(1000000).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => [
+  check('users_total_xp_nonnegative', sql`${table.totalXP} >= 0`),
+  check('users_virtual_capital_positive', sql`${table.virtualCapital} > 0`),
+]);
 
 // Watchlist table
 export const watchlist = pgTable('watchlist', {
@@ -35,7 +40,11 @@ export const watchlist = pgTable('watchlist', {
   targetPrice: doublePrecision('target_price'),
   notes: text('notes'),
   addedAt: timestamp('added_at').defaultNow().notNull(),
-});
+}, (table) => [
+  check('watchlist_exchange_valid', sql`${table.exchange} in ('NSE', 'BSE', 'BOTH')`),
+  check('watchlist_target_price_positive', sql`${table.targetPrice} IS NULL OR ${table.targetPrice} > 0`),
+  index('watchlist_user_added_at_idx').on(table.userId, table.addedAt),
+]);
 
 // Portfolio & Paper Trades table
 export const portfolio = pgTable('portfolio', {
@@ -54,7 +63,13 @@ export const portfolio = pgTable('portfolio', {
   status: text('status').default('OPEN').notNull(), // OPEN or CLOSED
   createdAt: timestamp('created_at').defaultNow().notNull(),
   closedAt: timestamp('closed_at'),
-});
+}, (table) => [
+  check('portfolio_type_valid', sql`${table.type} in ('BUY', 'SHORT')`),
+  check('portfolio_status_valid', sql`${table.status} in ('OPEN', 'CLOSED')`),
+  check('portfolio_shares_positive', sql`${table.shares} > 0`),
+  check('portfolio_entry_price_positive', sql`${table.entryPrice} > 0`),
+  index('portfolio_user_created_at_idx').on(table.userId, table.createdAt),
+]);
 
 // Trade & Volatility Alerts table
 export const tradeAlerts = pgTable('trade_alerts', {
@@ -70,7 +85,11 @@ export const tradeAlerts = pgTable('trade_alerts', {
   expansionRatio: doublePrecision('expansion_ratio'),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+}, (table) => [
+  check('trade_alerts_condition_valid', sql`${table.condition} in ('ABOVE', 'BELOW', 'ARBITRAGE_SPREAD', 'VOLATILITY_EXPANSION')`),
+  check('trade_alerts_threshold_nonnegative', sql`${table.threshold} >= 0`),
+  index('trade_alerts_user_created_at_idx').on(table.userId, table.createdAt),
+]);
 
 // Relationships
 export const usersRelations = relations(users, ({ many }) => ({

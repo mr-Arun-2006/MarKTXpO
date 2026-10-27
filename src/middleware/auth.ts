@@ -1,10 +1,9 @@
 import type { Request, Response, NextFunction } from 'express';
-import { adminAuth } from '../lib/firebase-admin.ts';
-import type { DecodedIdToken } from 'firebase-admin/auth';
+import { verifyFirebaseIdToken } from '../lib/firebaseIdToken.ts';
 import { isDevelopmentFallbackAuthEnabled } from './authPolicy.ts';
 
 export interface AuthRequest extends Request {
-  user?: DecodedIdToken | { uid: string; email?: string };
+  user?: { uid: string; email?: string; [claim: string]: unknown };
 }
 
 const unauthorized = (res: Response, message = 'Unauthorized') =>
@@ -58,8 +57,7 @@ export const requireAuth = async (
     }
 
     try {
-      const decodedToken = await adminAuth.verifyIdToken(token);
-      req.user = decodedToken;
+      req.user = await verifyFirebaseIdToken(token);
       return next();
     } catch {
       return unauthorized(res, 'Unauthorized: Invalid token');

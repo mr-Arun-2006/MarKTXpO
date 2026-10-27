@@ -118,7 +118,7 @@ export const Navbar: React.FC<Props> = ({
   React.useEffect(() => {
     const loadBenchmarks = async () => {
       try {
-        const res = await fetch('/api/market/benchmarks');
+        const res = await fetch('/api/market/benchmarks', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (data?.benchmarks?.length) {

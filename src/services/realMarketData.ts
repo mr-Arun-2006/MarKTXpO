@@ -566,7 +566,12 @@ export async function getRealIndianStockQuotes(): Promise<StockData[]> {
 
           const nsePrice = nseMeta?.regularMarketPrice;
           const bsePrice = bseMeta?.regularMarketPrice;
-          const prevClose = nseMeta?.chartPreviousClose;
+          const prevClose = nseMeta?.regularMarketPreviousClose ?? nseMeta?.chartPreviousClose ?? nseMeta?.previousClose;
+          const rawQuoteTime = nseMeta?.regularMarketTime;
+          const quoteTimestamp = Number.isFinite(rawQuoteTime) && rawQuoteTime > 0
+            ? new Date(rawQuoteTime * 1000).toISOString()
+            : undefined;
+          const marketState = typeof nseMeta?.marketState === 'string' ? nseMeta.marketState : undefined;
 
           if (
             !Number.isFinite(nsePrice) || (nsePrice as number) <= 0 ||
@@ -616,6 +621,8 @@ export async function getRealIndianStockQuotes(): Promise<StockData[]> {
             bsePrice: Math.round(validBsePrice * 100) / 100,
             currentPrice: Math.round(validNsePrice * 100) / 100,
             previousClose: Math.round(validPrevClose * 100) / 100,
+            quoteTimestamp,
+            marketState,
             change,
             changePercent,
             open: Math.round(dayOpen * 100) / 100,

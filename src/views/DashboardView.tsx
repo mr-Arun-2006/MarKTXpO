@@ -215,10 +215,16 @@ export const DashboardView: React.FC<Props> = ({
                     {selectedStock.sector}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-[#F7EEDB]/60 flex-wrap">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-[#F7EEDB]/60">
                   <span>{selectedStock.name}</span>
                   <span>•</span>
                   <span className="text-[#8CB4E0] font-mono text-[11px]">Yahoo Finance quote/history metadata · third-party reference data</span>
+                  <span className="text-[10px] text-[#F7EEDB]/50">
+                    {selectedStock.marketState === 'REGULAR' ? 'Provider reports regular session' : 'Latest provider quote'}
+                    {selectedStock.quoteTimestamp
+                      ? ` · ${new Date(selectedStock.quoteTimestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST`
+                      : ' · Quote timestamp unavailable'}
+                  </span>
                 </div>
               </div>
 
@@ -259,8 +265,8 @@ export const DashboardView: React.FC<Props> = ({
                 <span className="text-[#22C55E] font-semibold">₹{selectedStock.dayHigh || selectedStock.high}</span> / <span className="text-[#EF4444] font-semibold">₹{selectedStock.dayLow || selectedStock.low}</span>
               </div>
               <div className="bg-[#131211]/60 px-2.5 py-1.5 rounded-lg border border-[#D96B43]/15">
-                <span className="text-[#F7EEDB]/50 text-[10px] block">Prev Close / Open</span>
-                <span className="text-[#F7EEDB] font-semibold">₹{selectedStock.previousClose}</span> / <span>₹{selectedStock.open || selectedStock.previousClose}</span>
+                <span className="text-[#F7EEDB]/50 text-[10px] block">Previous Close / Open</span>
+                <span className="text-[#F7EEDB] font-semibold">₹{selectedStock.previousClose.toFixed(2)}</span> / <span>₹{(selectedStock.open || selectedStock.previousClose).toFixed(2)}</span>
               </div>
               <div className="bg-[#131211]/60 px-2.5 py-1.5 rounded-lg border border-[#D96B43]/15">
                 <span className="text-[#F7EEDB]/50 text-[10px] block">Upper Circuit</span>

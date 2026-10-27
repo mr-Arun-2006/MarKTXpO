@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserProfile, SupportedLanguage } from '../types/market';
 import { translations } from '../i18n/translations';
+import { getFirebaseAuthErrorMessage } from '../utils/firebaseAuthError';
 import { registerNewUser, loginWithEmail } from '../services/firebase';
 import {
   Lock,
@@ -52,8 +53,8 @@ export const AuthModal: React.FC<Props> = ({
         email: email.trim(),
       });
       onClose();
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Firebase authentication failed.');
+    } catch (error: unknown) {
+      setErrorMessage(getFirebaseAuthErrorMessage(error, 'email'));
     } finally {
       setLoading(false);
     }
@@ -93,7 +94,7 @@ export const AuthModal: React.FC<Props> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-          {errorMessage && <p role="alert" className="rounded-lg border border-red-500/30 bg-red-950/30 p-3 text-red-200">{errorMessage}</p>}
+          {errorMessage && <p role="alert" className="max-h-40 overflow-y-auto whitespace-pre-line break-words rounded-lg border border-red-500/30 bg-red-950/30 p-3 text-red-200">{errorMessage}</p>}
           {isRegister && (
             <div>
               <label className="block text-[#F7EEDB]/70 font-semibold mb-1">Full Name</label>

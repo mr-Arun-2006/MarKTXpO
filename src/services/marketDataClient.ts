@@ -41,7 +41,7 @@ export interface RealHistoryResponse {
  */
 export async function fetchRealStockQuotes(): Promise<RealMarketResponse | null> {
   try {
-    const res = await fetch('/api/market/stocks');
+    const res = await fetch('/api/market/stocks', { cache: 'no-store' });
     if (!res.ok) return null;
     const data: RealMarketResponse = await res.json();
     return data;
@@ -56,7 +56,7 @@ export async function fetchRealStockQuotes(): Promise<RealMarketResponse | null>
  */
 export async function fetchRealBenchmarks(): Promise<BenchmarkIndex[]> {
   try {
-    const res = await fetch('/api/market/benchmarks');
+    const res = await fetch('/api/market/benchmarks', { cache: 'no-store' });
     if (!res.ok) return [];
     const data: RealBenchmarksResponse = await res.json();
     return data.benchmarks || [];

@@ -22,8 +22,6 @@ if (!password) {
   throw new Error('SQL_ADMIN_PASSWORD must be set in environment variables.');
 }
 
-console.log(`Using user: ${user} to connect to database.`);
-
 export default defineConfig({
   schema: './src/db/schema.ts',
   out: './drizzle',
@@ -34,7 +32,7 @@ export default defineConfig({
     user: user,
     password: password,
     database: sqlDbName,
-    ssl: false,
+    ssl: process.env.SQL_SSL?.trim().toLowerCase() === 'true',
   },
   verbose: true,
 });

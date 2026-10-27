@@ -37,14 +37,9 @@ export default async function handler(req: Request, res: Response) {
         ? String((error as { code?: unknown }).code || '')
         : '';
     console.error('[Vercel API] Express app initialization failed', error);
-    const response: Record<string, string> = {
+    return res.status(500).json({
       error: 'API initialization failed. Check the Vercel function logs.',
       code: code || name,
-    };
-    // Keep diagnostics private on production deployments.
-    if (process.env.VERCEL_ENV !== 'production' && error instanceof Error) {
-      response.previewDiagnostic = error.message.slice(0, 500);
-    }
-    return res.status(500).json(response);
+    });
   }
 }

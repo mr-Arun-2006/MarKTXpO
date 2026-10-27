@@ -217,6 +217,13 @@ export function runHistoricalBacktest(
   const equityCurve: { date: string; equity: number; benchmark: number }[] = [];
   const firstClose = candles[0].close;
   const slippage = SLIPPAGE_PERCENT_PER_SIDE / 100;
+  // Include initial equity on the first candle date so there is one point
+  // for every historical candle used by the backtest.
+  equityCurve.push({
+    date: candles[0].date,
+    equity: round(initialCapital),
+    benchmark: round(initialCapital),
+  });
 
   const closePosition = (date: string, rawExitPrice: number, reason: string) => {
     if (!position) return;

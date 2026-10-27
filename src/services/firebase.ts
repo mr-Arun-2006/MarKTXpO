@@ -6,7 +6,6 @@ import {
   signOut as fbSignOut,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithCredential,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   updateProfile,
@@ -48,43 +47,17 @@ export const db: Firestore = customDbId
   ? getFirestore(app, customDbId)
   : getFirestore(app);
 
-// Fallback session management for when Email/Password, Anonymous Auth, or preview domain is restricted in Firebase Console
-const FALLBACK_SESSION_KEY = 'marktxpo_active_fallback_user';
-const REGISTERED_ACCOUNTS_KEY = 'marktxpo_registered_accounts';
+// Remove legacy simulated sessions from versions that stored local passwords for demo sign-in.
+const LEGACY_FALLBACK_SESSION_KEY = 'marktxpo_active_fallback_user';
+const LEGACY_REGISTERED_ACCOUNTS_KEY = 'marktxpo_registered_accounts';
+try {
+  localStorage.removeItem(LEGACY_FALLBACK_SESSION_KEY);
+  localStorage.removeItem(LEGACY_REGISTERED_ACCOUNTS_KEY);
+} catch {
+  // Storage can be unavailable in privacy-restricted browser contexts.
+}
 type AuthListener = (user: User | null) => void;
 const authListeners = new Set<AuthListener>();
-
-function getFallbackSessionUser(): User | null {
-  try {
-    const raw = localStorage.getItem(FALLBACK_SESSION_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as User;
-  } catch {
-    return null;
-  }
-}
-
-function setFallbackSessionUser(userObj: Partial<User> | null): User | null {
-  try {
-    if (!userObj) {
-      localStorage.removeItem(FALLBACK_SESSION_KEY);
-      notifyAuthListeners(auth.currentUser);
-      return null;
-    }
-    const normalized = {
-      uid: userObj.uid || `trader-${Date.now()}`,
-      email: userObj.email || '',
-      displayName: userObj.displayName || 'Floor Trader',
-      isAnonymous: Boolean(userObj.isAnonymous),
-      emailVerified: true,
-    } as User;
-    localStorage.setItem(FALLBACK_SESSION_KEY, JSON.stringify(normalized));
-    notifyAuthListeners(normalized);
-    return normalized;
-  } catch {
-    return null;
-  }
-}
 
 function notifyAuthListeners(user: User | null) {
   authListeners.forEach((listener) => {
@@ -95,31 +68,7 @@ function notifyAuthListeners(user: User | null) {
 }
 
 export function getActiveUser(): User | null {
-  return auth.currentUser || getFallbackSessionUser();
-}
-
-export function isRestrictedAuthError(err: any): boolean {
-  const code = String(err?.code || '').toLowerCase();
-  const msg = String(err?.message || '').toLowerCase();
-  return (
-    code.includes('unauthorized-domain') ||
-    code.includes('admin-restricted-operation') ||
-    code.includes('operation-not-allowed') ||
-    code.includes('configuration-not-found') ||
-    code.includes('app-not-authorized') ||
-    code.includes('auth-domain-config-required') ||
-    code.includes('popup-blocked') ||
-    code.includes('popup-closed-by-user') ||
-    code.includes('cancelled-popup-request') ||
-    msg.includes('unauthorized-domain') ||
-    msg.includes('admin-restricted-operation') ||
-    msg.includes('operation-not-allowed') ||
-    msg.includes('configuration-not-found') ||
-    msg.includes('app-not-authorized') ||
-    msg.includes('popup-blocked') ||
-    msg.includes('popup-closed-by-user') ||
-    msg.includes('cancelled-popup-request')
-  );
+  return auth.currentUser;
 }
 
 // Test connection check as mandated by Firebase skill
@@ -140,19 +89,13 @@ export async function testFirestoreConnection(): Promise<boolean> {
   }
 }
 
-// Subscribe to Auth State (supports both Firebase Auth and fallback sessions)
+// Subscribe to Firebase Authentication only. Local browser records are not identities.
 export function subscribeToAuth(callback: (user: User | null) => void): () => void {
   authListeners.add(callback);
-  const unsub = onAuthStateChanged(auth, (fbUser) => {
-    if (fbUser) {
-      callback(fbUser);
-    } else {
-      callback(getFallbackSessionUser());
-    }
-  });
+  const unsubscribe = onAuthStateChanged(auth, callback);
   return () => {
     authListeners.delete(callback);
-    unsub();
+    unsubscribe();
   };
 }
 
@@ -191,7 +134,7 @@ async function provisionStarterData(user: User, input?: Partial<RegisterUserInpu
     email: input?.email || user.email || existingProfile?.email || '',
     role: existingProfile?.role || 'user',
     language: input?.language || existingProfile?.language || 'en',
-    totalXP: existingProfile ? Math.max(existingProfile.totalXP, 100) : 100,
+    totalXP: existingProfile?.totalXP ?? 0,
     rankTitle: existingProfile?.rankTitle || 'Junior Floor Trader',
     preferredExchange: input?.preferredExchange || existingProfile?.preferredExchange || 'BOTH',
     experienceLevel: input?.experienceLevel || existingProfile?.experienceLevel || 'Beginner Student',
@@ -202,28 +145,11 @@ async function provisionStarterData(user: User, input?: Partial<RegisterUserInpu
   await saveDbUserProfile(profileDoc);
 
   if (!existingProfile) {
-    const starterTickers = [
-      { ticker: 'RELIANCE', name: 'Reliance Industries Ltd.', target: 2850 },
-      { ticker: 'TCS', name: 'Tata Consultancy Services', target: 4100 },
-      { ticker: 'HDFCBANK', name: 'HDFC Bank Ltd.', target: 1650 },
-    ];
-    for (const st of starterTickers) {
-      await saveDbWatchlistItem({
-        id: `w-${st.ticker}-${user.uid}`,
-        userId: user.uid,
-        ticker: st.ticker,
-        stockName: st.name,
-        exchange: input?.preferredExchange || 'BOTH',
-        targetPrice: st.target,
-        notes: 'Initial starter watchlist allocation.',
-        addedAt: new Date().toISOString(),
-      });
-    }
-
+    // Initialize empty progress; do not seed demo tickers into a new user's real watchlist.
     await saveDbGameProgress({
-      id: `progress-${user.uid}`,
+      id: 'progress-' + user.uid,
       userId: user.uid,
-      totalXP: 100,
+      totalXP: 0,
       currentStreak: 0,
       highestStreak: 0,
       completedLevels: '{}',
@@ -232,7 +158,7 @@ async function provisionStarterData(user: User, input?: Partial<RegisterUserInpu
   }
 }
 
-// Guest Anonymous Sign-In (with automatic fallback if Anonymous Auth or domain is restricted in Firebase Console)
+// Guest access is still a genuine Firebase anonymous-auth session, not a local fake identity.
 export async function signInAsGuest(): Promise<User> {
   try {
     const result = await signInAnonymously(auth);
@@ -242,77 +168,39 @@ export async function signInAsGuest(): Promise<User> {
     });
     await syncUserToCloudSql(result.user, 'Guest Floor Trader');
     return result.user;
-  } catch (err: any) {
-    const guestUser = setFallbackSessionUser({
-      uid: 'guest-sandbox-trader',
-      displayName: 'Guest Floor Trader',
-      email: 'guest@marktxpo.ai',
-      isAnonymous: true,
-    })!;
-    await provisionStarterData(guestUser, {
-      displayName: 'Guest Floor Trader',
-      email: 'guest@marktxpo.ai',
-      preferredExchange: 'BOTH',
-    });
-    await syncUserToCloudSql(guestUser, 'Guest Floor Trader');
-    return guestUser;
+  } catch (error) {
+    throw new Error(
+      'Guest access is unavailable. Enable Anonymous Authentication in Firebase Console or sign in with an account.',
+      { cause: error },
+    );
   }
 }
 
-// Google Sign-In with automatic fallback when preview domain or popup is restricted/closed
+// Google sign-in must complete in Firebase; no local identity is created on failure.
 export async function signInWithGoogle(customInput?: Partial<RegisterUserInput>): Promise<User> {
-  try {
-    const provider = new GoogleAuthProvider();
-    provider.addScope('profile');
-    provider.addScope('email');
-    provider.setCustomParameters({
-      prompt: 'select_account',
-    });
+  const provider = new GoogleAuthProvider();
+  provider.addScope('profile');
+  provider.addScope('email');
+  provider.setCustomParameters({ prompt: 'select_account' });
 
-    const result = await signInWithPopup(auth, provider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (credential?.accessToken) {
-      setGmailAccessToken(credential.accessToken);
-    }
+  const result = await signInWithPopup(auth, provider);
+  const credential = GoogleAuthProvider.credentialFromResult(result);
+  if (credential?.accessToken) setGmailAccessToken(credential.accessToken);
 
-    localStorage.removeItem(FALLBACK_SESSION_KEY);
-    await provisionStarterData(result.user, customInput);
-    await syncUserToCloudSql(result.user, customInput?.displayName);
-    notifyAuthListeners(result.user);
-    return result.user;
-  } catch (err: any) {
-    if (isRestrictedAuthError(err)) {
-      // Fallback: create verified Google Trader session so preview domain or popup dismissal never blocks login
-      const fallbackEmail = customInput?.email?.trim() || 'kumarsasi8940@gmail.com';
-      const fallbackName = customInput?.displayName?.trim() || 'Verified Google Trader';
-      const uid = createUidFromEmail(fallbackEmail);
-      const googleFallbackUser = setFallbackSessionUser({
-        uid,
-        email: fallbackEmail,
-        displayName: fallbackName,
-        isAnonymous: false,
-      })!;
-      await provisionStarterData(googleFallbackUser, {
-        ...customInput,
-        email: fallbackEmail,
-        displayName: fallbackName,
-      });
-      await syncUserToCloudSql(googleFallbackUser, fallbackName);
-      return googleFallbackUser;
-    }
-    throw new Error('Google sign-in could not be completed. Please try again or use Email/Guest access.');
-  }
+  await provisionStarterData(result.user, customInput);
+  await syncUserToCloudSql(result.user, customInput?.displayName);
+  notifyAuthListeners(result.user);
+  return result.user;
 }
 
-// Sign Out
+// Sign out from the real Firebase session and discard legacy simulated account records.
 export async function logOut(): Promise<void> {
-  localStorage.removeItem(FALLBACK_SESSION_KEY);
   try {
-    setGmailAccessToken(null);
+    localStorage.removeItem(LEGACY_FALLBACK_SESSION_KEY);
+    localStorage.removeItem(LEGACY_REGISTERED_ACCOUNTS_KEY);
   } catch {}
-  try {
-    await fbSignOut(auth);
-  } catch {}
+  setGmailAccessToken(null);
+  await fbSignOut(auth);
   notifyAuthListeners(null);
 }
 
@@ -327,117 +215,37 @@ export interface RegisterUserInput {
   virtualCapital?: number;
 }
 
-// Helper to create deterministic UID from email for fallback accounts
-function createUidFromEmail(email: string): string {
-  const clean = email.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
-  return `trader_${clean}`;
-}
-
-// Register New User in Firebase Auth, Firestore, and Cloud SQL Database
+// Registration succeeds only when Firebase creates a real account.
 export async function registerNewUser(input: RegisterUserInput): Promise<User> {
-  let user: User | null = auth.currentUser;
+  const email = input.email.trim().toLowerCase();
+  const displayName = input.displayName.trim();
+  if (!email || !email.includes('@')) throw new Error('Enter a valid email address.');
+  if (!input.password || input.password.length < 6) throw new Error('Password must contain at least 6 characters.');
+  if (!displayName || displayName.length > 100) throw new Error('Name must contain 1–100 characters.');
 
-  if (!user) {
+  const credential = await createUserWithEmailAndPassword(auth, email, input.password);
+  if (displayName) {
     try {
-      if (input.password && input.password.length >= 6) {
-        const cred = await createUserWithEmailAndPassword(auth, input.email, input.password);
-        user = cred.user;
-      } else {
-        const cred = await signInAnonymously(auth);
-        user = cred.user;
-      }
-    } catch (err: any) {
-      if (isRestrictedAuthError(err)) {
-        // When preview domain (auth/unauthorized-domain) or Email/Password provider is restricted:
-        // store account credentials and create a verified trader session synced to Cloud SQL.
-        const uid = createUidFromEmail(input.email);
-        try {
-          const rawAccounts = localStorage.getItem(REGISTERED_ACCOUNTS_KEY);
-          const accounts = rawAccounts ? JSON.parse(rawAccounts) : {};
-          accounts[input.email.trim().toLowerCase()] = {
-            uid,
-            email: input.email.trim(),
-            displayName: input.displayName.trim(),
-            password: input.password || '',
-          };
-          localStorage.setItem(REGISTERED_ACCOUNTS_KEY, JSON.stringify(accounts));
-        } catch {}
-
-        user = setFallbackSessionUser({
-          uid,
-          email: input.email.trim(),
-          displayName: input.displayName.trim(),
-          isAnonymous: false,
-        })!;
-      } else {
-        throw err;
-      }
+      await updateProfile(credential.user, { displayName });
+    } catch {
+      console.warn('Firebase account was created, but the display name could not be updated.');
     }
   }
 
-  if (input.displayName && auth.currentUser) {
-    try {
-      await updateProfile(auth.currentUser, { displayName: input.displayName });
-    } catch {}
-  }
-
-  await provisionStarterData(user!, input);
-  await syncUserToCloudSql(user!, input.displayName);
-  notifyAuthListeners(user!);
-
-  return user!;
+  await provisionStarterData(credential.user, { ...input, email, displayName });
+  await syncUserToCloudSql(credential.user, displayName);
+  notifyAuthListeners(credential.user);
+  return credential.user;
 }
 
-// Login with Email and Password
+// Login succeeds only when Firebase verifies the email/password credentials.
 export async function loginWithEmail(email: string, pass: string): Promise<User> {
-  try {
-    const cred = await signInWithEmailAndPassword(auth, email, pass);
-    localStorage.removeItem(FALLBACK_SESSION_KEY);
-    await provisionStarterData(cred.user);
-    await syncUserToCloudSql(cred.user);
-    notifyAuthListeners(cred.user);
-    return cred.user;
-  } catch (err: any) {
-    if (
-      isRestrictedAuthError(err) ||
-      err?.code === 'auth/user-not-found' ||
-      err?.code === 'auth/invalid-credential'
-    ) {
-      const normalizedEmail = email.trim().toLowerCase();
-      try {
-        const rawAccounts = localStorage.getItem(REGISTERED_ACCOUNTS_KEY);
-        const accounts = rawAccounts ? JSON.parse(rawAccounts) : {};
-        const match = accounts[normalizedEmail];
-        if (match && (!match.password || match.password === pass)) {
-          const fallbackUser = setFallbackSessionUser({
-            uid: match.uid,
-            email: match.email,
-            displayName: match.displayName,
-            isAnonymous: false,
-          })!;
-          await provisionStarterData(fallbackUser);
-          await syncUserToCloudSql(fallbackUser, match.displayName);
-          return fallbackUser;
-        }
-      } catch {}
-
-      if (isRestrictedAuthError(err)) {
-        const uid = createUidFromEmail(normalizedEmail);
-        const handle = normalizedEmail.split('@')[0] || 'Trader';
-        const displayName = handle.charAt(0).toUpperCase() + handle.slice(1);
-        const fallbackUser = setFallbackSessionUser({
-          uid,
-          email: email.trim(),
-          displayName,
-          isAnonymous: false,
-        })!;
-        await provisionStarterData(fallbackUser);
-        await syncUserToCloudSql(fallbackUser, displayName);
-        return fallbackUser;
-      }
-    }
-    throw err;
-  }
+  const normalizedEmail = email.trim().toLowerCase();
+  const credential = await signInWithEmailAndPassword(auth, normalizedEmail, pass);
+  await provisionStarterData(credential.user);
+  await syncUserToCloudSql(credential.user);
+  notifyAuthListeners(credential.user);
+  return credential.user;
 }
 
 // Database Interfaces
@@ -472,6 +280,7 @@ export interface DbPortfolioPosition {
   userId: string;
   ticker: string;
   stockName?: string;
+  exchange?: 'NSE' | 'BSE';
   type: 'BUY' | 'SHORT';
   shares: number;
   entryPrice: number;
@@ -566,17 +375,18 @@ export async function saveDbWatchlistItem(item: DbWatchlistItem): Promise<void> 
 }
 
 export async function deleteDbWatchlistItem(userId: string, itemId: string): Promise<void> {
+  if (!auth.currentUser || auth.currentUser.uid !== userId) {
+    throw new Error('Sign in with the matching account before deleting a watchlist item.');
+  }
   try {
-    const key = `marktxpo_watchlist_${userId}`;
-    const existing: DbWatchlistItem[] = JSON.parse(localStorage.getItem(key) || '[]');
-    localStorage.setItem(key, JSON.stringify(existing.filter((i) => i.id !== itemId)));
-  } catch {}
-  if (!auth.currentUser || auth.currentUser.uid !== userId) return;
-  try {
-    const itemRef = doc(db, 'users', userId, 'watchlist', itemId);
-    await deleteDoc(itemRef);
-  } catch (err) {
-    console.error('Failed to delete watchlist item from Firestore:', err);
+    await deleteDoc(doc(db, 'users', userId, 'watchlist', itemId));
+    try {
+      const key = 'marktxpo_watchlist_' + userId;
+      const existing: DbWatchlistItem[] = JSON.parse(localStorage.getItem(key) || '[]');
+      localStorage.setItem(key, JSON.stringify(existing.filter((item) => item.id !== itemId)));
+    } catch {}
+  } catch (error) {
+    throw new Error('Could not delete the watchlist item from Firestore.', { cause: error });
   }
 }
 
@@ -600,40 +410,48 @@ export async function getDbWatchlist(userId: string): Promise<DbWatchlistItem[]>
 
 // Portfolio CRUD
 export async function saveDbPortfolioPosition(pos: DbPortfolioPosition): Promise<void> {
-  try {
-    const key = `marktxpo_portfolio_${pos.userId}`;
-    const existing: DbPortfolioPosition[] = JSON.parse(localStorage.getItem(key) || '[]');
-    const filtered = existing.filter((p) => p.id !== pos.id);
-    filtered.push(pos);
-    localStorage.setItem(key, JSON.stringify(filtered));
-  } catch {}
-  if (!auth.currentUser || auth.currentUser.uid !== pos.userId) return;
+  if (!auth.currentUser || auth.currentUser.uid !== pos.userId) {
+    throw new Error('Sign in with the matching account before saving a portfolio position.');
+  }
   try {
     const posRef = doc(db, 'users', pos.userId, 'portfolio', pos.id);
     await setDoc(posRef, pos);
-  } catch (err) {
-    console.error('Failed to save portfolio position to Firestore:', err);
+    const key = 'marktxpo_portfolio_' + pos.userId;
+    const existing: DbPortfolioPosition[] = JSON.parse(localStorage.getItem(key) || '[]');
+    localStorage.setItem(key, JSON.stringify([...existing.filter((item) => item.id !== pos.id), pos]));
+  } catch (error) {
+    throw new Error('Could not save this portfolio position to Firestore. Check the connection and security rules.', { cause: error });
   }
 }
 
 export async function getDbPortfolio(userId: string): Promise<DbPortfolioPosition[]> {
-  if (auth.currentUser && auth.currentUser.uid === userId) {
-    try {
-      const collRef = collection(db, 'users', userId, 'portfolio');
-      const snap = await getDocs(collRef);
-      return snap.docs.map((d) => d.data() as DbPortfolioPosition);
-    } catch (err) {
-      console.error('Failed to get portfolio from Firestore:', err);
-    }
+  if (!auth.currentUser || auth.currentUser.uid !== userId) {
+    throw new Error('You can only read the signed-in user portfolio.');
   }
   try {
-    const key = `marktxpo_portfolio_${userId}`;
-    return JSON.parse(localStorage.getItem(key) || '[]');
-  } catch {
-    return [];
+    const collRef = collection(db, 'users', userId, 'portfolio');
+    const snap = await getDocs(collRef);
+    const positions = snap.docs.map((docSnap) => docSnap.data() as DbPortfolioPosition);
+    try { localStorage.setItem('marktxpo_portfolio_' + userId, JSON.stringify(positions)); } catch {}
+    return positions;
+  } catch (error) {
+    throw new Error('Could not load this portfolio from Firestore.', { cause: error });
   }
 }
 
+export async function deleteDbPortfolioPosition(userId: string, positionId: string): Promise<void> {
+  if (!auth.currentUser || auth.currentUser.uid !== userId) {
+    throw new Error('Sign in with the matching account before deleting a portfolio position.');
+  }
+  try {
+    await deleteDoc(doc(db, 'users', userId, 'portfolio', positionId));
+    const key = 'marktxpo_portfolio_' + userId;
+    const existing: DbPortfolioPosition[] = JSON.parse(localStorage.getItem(key) || '[]');
+    localStorage.setItem(key, JSON.stringify(existing.filter((item) => item.id !== positionId)));
+  } catch (error) {
+    throw new Error('Could not delete this portfolio position from Firestore.', { cause: error });
+  }
+}
 // Game Progress & Streaks Sync
 export async function saveDbGameProgress(progress: DbGameProgress): Promise<void> {
   try {

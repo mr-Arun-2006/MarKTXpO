@@ -100,12 +100,20 @@ export const RegisterUserModal: React.FC<Props> = ({
       const code = String(err?.code || '').toLowerCase();
       if (code === 'auth/email-already-in-use') {
         setErrorMsg('An account with this email already exists. Try signing in instead.');
+      } else if (code === 'auth/operation-not-allowed') {
+        setErrorMsg('Email/password authentication is disabled. Enable the Email/Password provider in Firebase Console.');
+      } else if (code === 'auth/unauthorized-domain') {
+        setErrorMsg('This deployment domain is not authorized in Firebase. Add the hostname in Firebase Console → Authentication → Settings → Authorized domains.');
+      } else if (code === 'auth/weak-password') {
+        setErrorMsg('Choose a stronger password with at least 6 characters.');
+      } else if (code === 'auth/network-request-failed') {
+        setErrorMsg('Firebase could not be reached. Check your connection and try again.');
       } else if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
         setErrorMsg('Incorrect email or password. Please verify and try again.');
       } else if (code.includes('popup-closed-by-user') || code.includes('cancelled-popup-request')) {
         setErrorMsg('Sign-in popup was closed before completion. Please try again.');
       } else {
-        setErrorMsg('Authentication failed. Please check your credentials or use Google Account Sign-In below.');
+        setErrorMsg(err instanceof Error ? err.message : 'Firebase authentication failed. Check the Firebase project configuration and try again.');
       }
     } finally {
       setLoading(false);
@@ -131,7 +139,11 @@ export const RegisterUserModal: React.FC<Props> = ({
       }, 900);
     } catch (err: any) {
       const code = String(err?.code || '').toLowerCase();
-      if (code.includes('popup-closed-by-user') || code.includes('cancelled-popup-request')) {
+      if (code.includes('auth/operation-not-allowed')) {
+        setErrorMsg('Google sign-in is disabled. Enable the Google provider in Firebase Console.');
+      } else if (code.includes('auth/unauthorized-domain')) {
+        setErrorMsg('Add this website hostname to Firebase Authentication → Authorized domains.');
+      } else if (code.includes('popup-closed-by-user') || code.includes('cancelled-popup-request')) {
         setErrorMsg('Google sign-in window was closed. Click Google Account again when ready.');
       } else {
         setErrorMsg(err?.message || 'Google sign-in cancelled.');

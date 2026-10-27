@@ -28,7 +28,6 @@ export const ScreenerView: React.FC<Props> = ({
   const [selectedPreset, setSelectedPreset] = useState<string>('all');
   const [searchWord, setSearchWord] = useState<string>('');
   const [sectorFilter, setSectorFilter] = useState<string>('ALL');
-  const [minConfidence, setMinConfidence] = useState<number>(50);
   const [maxPE, setMaxPE] = useState<number>(90);
 
   const t = translations[language];
@@ -57,13 +56,13 @@ export const ScreenerView: React.FC<Props> = ({
         const matchesName = stock.name.toLowerCase().includes(query);
         const matchesTicker = stock.ticker.toLowerCase().includes(query);
         const matchesSector = stock.sector.toLowerCase().includes(query);
-        const matchesSentiment = stock.sentiment.label.toLowerCase().includes(query);
+        const matchesSentiment = stock.sentiment.confidence > 0 && stock.sentiment.label.toLowerCase().includes(query);
 
         let matchesSemantic = false;
         if (query.includes('dip') || query.includes('oversold')) {
           matchesSemantic = stock.rsi < 45;
         } else if (query.includes('bull') || query.includes('strong')) {
-          matchesSemantic = stock.sentiment.score > 60;
+          matchesSemantic = stock.changePercent > 0 && stock.currentPrice > stock.dma20 && stock.dma20 > stock.dma50;
         } else if (query.includes('dividend') || query.includes('yield')) {
           matchesSemantic = stock.dividendYield > 1.2;
         } else if (query.includes('arbitrage') || query.includes('spread')) {
@@ -78,12 +77,11 @@ export const ScreenerView: React.FC<Props> = ({
       }
 
       // 4. Sliders
-      if (stock.sentiment.confidence < minConfidence) return false;
       if (stock.pe > maxPE) return false;
 
       return true;
     });
-  }, [stocks, selectedPreset, searchWord, sectorFilter, minConfidence, maxPE]);
+  }, [stocks, selectedPreset, searchWord, sectorFilter, maxPE]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8 text-[#F7EEDB]">
@@ -101,6 +99,10 @@ export const ScreenerView: React.FC<Props> = ({
         <p className="text-xs text-[#F7EEDB]/60">
           {t.simpleScreenerSubtitle}
         </p>
+      </div>
+
+      <div className="rounded-xl border border-amber-500/25 bg-amber-950/15 p-3 text-[11px] leading-5 text-amber-100">
+        Yahoo Finance quote/history is third-party reference data, not an official NSE/BSE feed. P/E, P/B, market cap, beta and dividend yield shown here are registry reference estimates. Current news sentiment, institutional flows, delivery percentage and order-book data are unavailable unless a verified provider supplies them.
       </div>
 
       {/* Preset Word Cards */}
@@ -183,25 +185,13 @@ export const ScreenerView: React.FC<Props> = ({
         </div>
 
         <div className="grid sm:grid-cols-2 gap-6 pt-3 border-t border-[#D96B43]/10 text-xs">
-          <div>
-            <div className="flex justify-between text-[#F7EEDB]/60 mb-1">
-              <span>Min AI Confidence Level</span>
-              <span className="font-mono font-bold text-[#F7EEDB]">{minConfidence}%</span>
-            </div>
-            <input
-              type="range"
-              min="50"
-              max="95"
-              step="5"
-              value={minConfidence}
-              onChange={(e) => setMinConfidence(Number(e.target.value))}
-              className="w-full accent-[#D96B43] cursor-pointer"
-            />
+          <div className="rounded-xl border border-[#8CB4E0]/20 bg-[#131211] p-3 text-[#F7EEDB]/55">
+            <div className="font-bold text-[#BFD6F2]">Sentiment filter</div>
+            <p className="mt-1 leading-5">Disabled until a verified current-news sentiment source is connected. Positive price momentum is a rule-based technical observation, not AI confidence.</p>
           </div>
-
           <div>
             <div className="flex justify-between text-[#F7EEDB]/60 mb-1">
-              <span>Maximum Valuation P/E</span>
+              <span>Maximum P/E Reference Estimate</span>
               <span className="font-mono font-bold text-[#F7EEDB]">{maxPE}x</span>
             </div>
             <input
@@ -238,11 +228,11 @@ export const ScreenerView: React.FC<Props> = ({
                 <th className="py-3 px-4 text-center">1H Trend</th>
                 <th className="py-3 px-4 text-center">Trend (Recharts)</th>
                 <th className="py-3 px-4 text-right">NSE / BSE Price</th>
-                <th className="py-3 px-4 text-center">Dividend Yield</th>
-                <th className="py-3 px-4 text-right">Spread %</th>
+                <th className="py-3 px-4 text-center">Dividend Yield (Ref.)</th>
+                <th className="py-3 px-4 text-right">Quote Gap %</th>
                 <th className="py-3 px-4 text-center">RSI</th>
-                <th className="py-3 px-4 text-center">AI Confidence</th>
-                <th className="py-3 px-4 text-right">P/E</th>
+                <th className="py-3 px-4 text-center">Sentiment Source</th>
+                <th className="py-3 px-4 text-right">P/E (Ref.)</th>
                 <th className="py-3 px-4 text-right">Action</th>
               </tr>
             </thead>
@@ -324,7 +314,7 @@ export const ScreenerView: React.FC<Props> = ({
                         )}
                       </td>
 
-                      <td className="py-3.5 px-4 text-right">
+                      <td className="py-3.5 px-4 text-right" title="Calculated from third-party NSE/BSE quote metadata. It does not prove a simultaneously executable arbitrage after spreads, taxes or slippage.">
                         <span
                           className={`font-bold ${
                             Math.abs(stock.spreadPercent) > 0.03 ? 'text-[#F7EEDB]' : 'text-[#F7EEDB]/50'
@@ -339,11 +329,14 @@ export const ScreenerView: React.FC<Props> = ({
                       </td>
 
                       <td className="py-3.5 px-4 text-center">
-                        <div className="inline-flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-[#D96B43]"></span>
-                          <span className="font-bold text-[#F7EEDB]">{stock.sentiment.confidence}%</span>
-                        </div>
-                        <div className="text-[10px] text-[#D96B43] font-sans">{stock.sentiment.label}</div>
+                        {stock.sentiment.confidence > 0 ? (
+                          <>
+                            <div className="font-bold text-[#F7EEDB]">{stock.sentiment.confidence}%</div>
+                            <div className="text-[10px] text-[#D96B43] font-sans">{stock.sentiment.label}</div>
+                          </>
+                        ) : (
+                          <div className="text-[10px] leading-4 text-[#F7EEDB]/45">Unavailable</div>
+                        )}
                       </td>
 
                       <td className="py-3.5 px-4 text-right text-[#F7EEDB]/80">{stock.pe}x</td>

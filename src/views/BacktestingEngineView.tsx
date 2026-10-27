@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { CustomStrategy, BacktestResult, BacktestTrade, StockData, SupportedLanguage } from '../types/market';
 import { translations } from '../i18n/translations';
+import { auth } from '../services/firebase';
+import { runHistoricalBacktest, type HistoricalBacktestOutcome } from '../utils/historicalBacktest';
 import {
   Cpu,
   Sparkles,
@@ -22,126 +24,103 @@ export const BacktestingEngineView: React.FC<Props> = ({
 }) => {
   const [durationYears, setDurationYears] = useState<number>(3);
   const [initialCapital, setInitialCapital] = useState<number>(500000);
-  const [selectedTicker, setSelectedTicker] = useState<string>('RELIANCE');
+  const [selectedTicker, setSelectedTicker] = useState<string>(stocks[0]?.ticker || 'RELIANCE');
+  const [backtestOutcome, setBacktestOutcome] = useState<HistoricalBacktestOutcome | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [aiAuditing, setAiAuditing] = useState<boolean>(false);
   const [aiAuditText, setAiAuditText] = useState<string>('');
 
   const t = translations[language];
 
-  // Active strategy fallback
-  const activeStrategy: CustomStrategy = strategy || {
+  // A deterministic educational rule set; results are only shown after fetching actual daily candles.
+  const activeStrategy: CustomStrategy = useMemo(() => strategy || ({
     id: 'strat-default',
-    name: 'Nifty Bluechip Mean Reversion & Arbitrage',
-    description: 'Buys dips on Indian equities with RSI < 42 above 50-DMA and captures cross-exchange spreads.',
+    name: 'Historical RSI Mean Reversion',
+    description: 'Buy when RSI(14) falls below 35; exits are controlled by configured stop/target levels.',
     rules: [
-      { id: '1', indicator: 'RSI', operator: '<', value: 42, action: 'BUY' },
-      { id: '2', indicator: 'DMA_50_CROSS', operator: 'CROSSES_ABOVE', value: 0, action: 'BUY' },
+      { id: '1', indicator: 'RSI', operator: '<', value: 35, action: 'BUY' },
     ],
-    stopLossPercent: 2.8,
-    targetProfitPercent: 6.8,
+    stopLossPercent: 3,
+    targetProfitPercent: 6,
     trailingStopLoss: true,
     active: true,
-  };
+  }), [strategy]);
 
-  // Run simulation calculation
-  const result: BacktestResult = useMemo(() => {
-    const totalDays = durationYears * 252;
-    const trades: BacktestTrade[] = [];
-    const equityCurve: { date: string; equity: number; benchmark: number }[] = [];
-
-    let currentEquity = initialCapital;
-    let benchmarkEquity = initialCapital;
-    let peakEquity = initialCapital;
-    let maxDrawdown = 0;
-    let winningTrades = 0;
-    let losingTrades = 0;
-
-    const startDate = new Date();
-    startDate.setFullYear(startDate.getFullYear() - durationYears);
-
-    const tradeFrequency = 14;
-    const numTrades = Math.floor(totalDays / tradeFrequency);
-
-    for (let i = 0; i < numTrades; i++) {
-      const tradeDate = new Date(startDate);
-      tradeDate.setDate(tradeDate.getDate() + i * tradeFrequency);
-      const dateStr = tradeDate.toISOString().split('T')[0];
-
-      const winProbability = 0.64 + (activeStrategy.rules.length > 2 ? 0.05 : 0.0);
-      const isWin = Math.random() < winProbability;
-
-      const pnlPercent = isWin
-        ? activeStrategy.targetProfitPercent * (0.8 + Math.random() * 0.4)
-        : -activeStrategy.stopLossPercent * (0.9 + Math.random() * 0.3);
-
-      const allocation = currentEquity * 0.25;
-      const tradePnlRupees = allocation * (pnlPercent / 100);
-
-      currentEquity += tradePnlRupees;
-      if (currentEquity > peakEquity) peakEquity = currentEquity;
-      const drawdown = ((peakEquity - currentEquity) / peakEquity) * 100;
-      if (drawdown > maxDrawdown) maxDrawdown = drawdown;
-
-      if (isWin) winningTrades++;
-      else losingTrades++;
-
-      const benchmarkDailyGrowth = Math.pow(1.135, tradeFrequency / 252);
-      benchmarkEquity *= benchmarkDailyGrowth * (1 + (Math.random() - 0.48) * 0.03);
-
-      equityCurve.push({
-        date: dateStr,
-        equity: Math.round(currentEquity),
-        benchmark: Math.round(benchmarkEquity),
-      });
-
-      trades.push({
-        id: `tr-${i + 1}`,
-        date: dateStr,
-        ticker: selectedTicker,
-        action: 'BUY',
-        price: Math.round(2500 + Math.random() * 800),
-        pnlPercent: Math.round(pnlPercent * 10) / 10,
-        pnlRupees: Math.round(tradePnlRupees),
-        status: 'CLOSED',
-        reason: isWin ? 'Achieved Target Band' : 'Hit Trailing Stop',
-      });
+  useEffect(() => {
+    if (stocks.length && !stocks.some((stock) => stock.ticker === selectedTicker)) {
+      setSelectedTicker(stocks[0].ticker);
     }
+  }, [stocks, selectedTicker]);
 
-    const totalReturn = Math.round(((currentEquity - initialCapital) / initialCapital) * 1000) / 10;
-    const benchmarkReturn = Math.round(((benchmarkEquity - initialCapital) / initialCapital) * 1000) / 10;
-    const cagr = Math.round((Math.pow(currentEquity / initialCapital, 1 / durationYears) - 1) * 1000) / 10;
-    const winRate = Math.round((winningTrades / numTrades) * 1000) / 10;
-    const profitFactor = Math.round((winRate / (100 - winRate)) * (activeStrategy.targetProfitPercent / activeStrategy.stopLossPercent) * 10) / 10;
-    const sharpeRatio = Math.round(((cagr - 6.5) / 14.2) * 10) / 10;
+  useEffect(() => {
+    let active = true;
+    const loadHistoricalCandles = async () => {
+      if (!selectedTicker) {
+        setHistoryError('Choose a security with a fetched quote before running a backtest.');
+        setBacktestOutcome(null);
+        setIsLoadingHistory(false);
+        return;
+      }
 
-    return {
-      strategyName: activeStrategy.name,
-      durationYears,
-      initialCapital,
-      finalCapital: Math.round(currentEquity),
-      totalReturn,
-      benchmarkReturn,
-      cagr,
-      maxDrawdown: Math.round(maxDrawdown * 10) / 10,
-      winRate,
-      profitFactor,
-      totalTrades: numTrades,
-      winningTrades,
-      losingTrades,
-      sharpeRatio,
-      equityCurve,
-      trades: trades.reverse(),
+      setIsLoadingHistory(true);
+      setHistoryError(null);
+      setBacktestOutcome(null);
+      try {
+        const currentUser = auth.currentUser;
+        if (!currentUser) throw new Error('Sign in again before running a backtest.');
+        const token = await currentUser.getIdToken();
+        const range = durationYears === 1 ? '1y' : '5y';
+        const params = new URLSearchParams({
+          ticker: selectedTicker,
+          range,
+          interval: '1d',
+        });
+        const response = await fetch('/api/market/history?' + params.toString(), {
+          headers: { Authorization: 'Bearer ' + token },
+          cache: 'no-store',
+        });
+        const payload = await response.json();
+        if (!response.ok || payload?.success !== true || !Array.isArray(payload?.candles)) {
+          throw new Error(typeof payload?.error === 'string' ? payload.error : 'The historical market-data provider did not return usable candles.');
+        }
+        const outcome = runHistoricalBacktest(
+          selectedTicker,
+          payload.candles,
+          activeStrategy,
+          durationYears,
+          initialCapital,
+          typeof payload.dataSource === 'string' ? payload.dataSource : 'Unverified market-data source',
+        );
+        if (active) setBacktestOutcome(outcome);
+      } catch (error) {
+        if (active) {
+          setHistoryError(error instanceof Error ? error.message : 'Unable to load historical candles. No synthetic results were generated.');
+        }
+      } finally {
+        if (active) setIsLoadingHistory(false);
+      }
     };
-  }, [activeStrategy, durationYears, initialCapital, selectedTicker]);
+
+    void loadHistoricalCandles();
+    return () => { active = false; };
+  }, [selectedTicker, durationYears, initialCapital, activeStrategy, retryCount]);
+
+  const result = backtestOutcome?.result;
 
   // AI Strategy Audit
   const handleRunAiAudit = async () => {
+    if (!result || !backtestOutcome) return;
     setAiAuditing(true);
     setAiAuditText('');
     try {
       const res = await fetch('/api/ai/strategy-audit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + (await auth.currentUser?.getIdToken() || ''),
+        },
         body: JSON.stringify({
           strategyName: activeStrategy.name,
           rules: activeStrategy.rules,
@@ -162,11 +141,30 @@ export const BacktestingEngineView: React.FC<Props> = ({
       setAiAuditText(data.audit);
     } catch (err: any) {
       console.warn(err);
-      setAiAuditText('Strategy simulation verified against historical EOD candle data.');
+      setAiAuditText('AI audit unavailable: the model request failed. No verified strategy audit was produced.');
     } finally {
       setAiAuditing(false);
     }
   };
+
+  if (!backtestOutcome || !result) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-4xl flex-col items-center justify-center gap-4 px-5 py-12 text-center text-[#F7EEDB]">
+        <div className="rounded-2xl border border-[#D96B43]/25 bg-[#1A1816] p-6">
+          <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#D96B43]">Historical backtest</div>
+          <h1 className="mt-3 text-2xl font-black">{isLoadingHistory ? 'Fetching daily candles…' : 'No verified backtest result'}</h1>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[#F7EEDB]/60">
+            {isLoadingHistory ? 'Loading historical bars from the configured source and calculating indicators. The engine does not generate random prices or simulated performance.' : (historyError || 'The data source did not provide enough valid daily history.')}
+          </p>
+          {!isLoadingHistory && (
+            <button onClick={() => setRetryCount((value) => value + 1)} className="mt-5 rounded-xl bg-[#D96B43] px-5 py-3 text-sm font-bold text-[#131211]">
+              Retry historical data
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const chartWidth = 720;
   const chartHeight = 220;
@@ -208,7 +206,7 @@ export const BacktestingEngineView: React.FC<Props> = ({
             </span>
           </div>
           <p className="text-xs text-[#F7EEDB]/60 mt-1">
-            Simulate historical alpha, drawdown curves, and win rates across multi-year Indian equity EOD data.
+            Deterministic strategy evaluation on fetched daily candles. Signals are evaluated after close and trade fills occur no earlier than the next session.
           </p>
         </div>
 
@@ -255,6 +253,15 @@ export const BacktestingEngineView: React.FC<Props> = ({
             <span>{aiAuditing ? 'Auditing...' : 'AI Strategy Audit'}</span>
           </button>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-[#8CB4E0]/20 bg-[#171A1D] px-4 py-3 text-xs leading-5 text-[#F7EEDB]/70">
+        <div><span className="font-bold text-[#BFD6F2]">Source:</span> {backtestOutcome.source}</div>
+        <div>Sample window: {backtestOutcome.startDate} to {backtestOutcome.endDate} · {backtestOutcome.candleCount} daily candles · Benchmark: {selectedTicker} buy-and-hold.</div>
+        {backtestOutcome.unsupportedRules.length > 0 && (
+          <div className="mt-2 text-amber-200">Unavailable rule inputs (not simulated): {backtestOutcome.unsupportedRules.join(', ')}. Connect a provider for those historical series before using rules that depend on them.</div>
+        )}
+        <div className="mt-1 text-[#F7EEDB]/45">Third-party historical data is not an official exchange feed. Backtests are sensitive to source quality, slippage assumptions, corporate actions and out-of-sample performance.</div>
       </div>
 
       {/* Strategy Summary Banner */}
@@ -330,7 +337,7 @@ export const BacktestingEngineView: React.FC<Props> = ({
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-0.5 bg-[#8A7E6C] inline-block"></span>
-              <span className="text-[#F7EEDB]/50">NIFTY 50 Benchmark</span>
+              <span className="text-[#F7EEDB]/50">{selectedTicker} Buy &amp; Hold</span>
             </div>
           </div>
         </div>
@@ -378,7 +385,7 @@ export const BacktestingEngineView: React.FC<Props> = ({
               {result.trades.length} Closed Trades
             </span>
           </div>
-          <span className="text-xs text-[#F7EEDB]/50 font-mono">Slippage modeled at 0.04%</span>
+          <span className="text-xs text-[#F7EEDB]/50 font-mono">Modeled slippage: {backtestOutcome.slippagePercentPerSide}% per side</span>
         </div>
 
         <div className="overflow-x-auto max-h-[300px]">

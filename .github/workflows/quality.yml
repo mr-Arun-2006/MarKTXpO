@@ -28,7 +28,7 @@ jobs:
       - name: Type-check
         run: bun run lint
 
-      - name: Test authentication fallback policy
+      - name: Run unit tests
         run: bun run test
 
       - name: Build production frontend

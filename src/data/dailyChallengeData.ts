@@ -40,16 +40,16 @@ export interface DailyChallengeRecord {
   >;
 }
 
-// 7 Rotating rich market scenarios so every day of the week has a unique challenge
+// Fictional educational scenarios. They are not current-market reports or verified historical exchange data.
 const CHALLENGE_POOL: (Omit<DailyChallenge, 'dateKey' | 'id'> & { id?: string })[] = [
   {
-    title: 'The Nifty 50 Breakout: 23,200 All-Time High Test',
+    title: 'Practice Scenario: Nifty 50 Breakout Test',
     themeBadge: 'NIFTY Breakout',
     stockTicker: 'NIFTY 50',
     stockName: 'NSE Nifty 50 Benchmark Index',
     timeframe: 'Daily Candle',
     setupDescription:
-      'NIFTY 50 has consolidated for 9 sessions between 23,000 and 23,200. Today, strong institutional foreign inflow pushes index price to 23,240, closing 40 points above the horizontal resistance on the highest volume of the month.',
+      'In this hypothetical practice scenario, assume the index consolidates between 23,000 and 23,200. A fictional close at 23,240 breaks above resistance. No real institutional flows or current market event are being reported.',
     supportLevel: 23050,
     resistanceLevel: 23200,
     initialCandles: [

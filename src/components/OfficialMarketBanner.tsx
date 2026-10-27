@@ -54,8 +54,6 @@ export const OfficialMarketBanner: React.FC<Props> = ({
               ? 'Market Data Unavailable'
               : !lastLiveSync
               ? 'Connecting Feed'
-              : isLiveOfficial
-              ? 'Verified Feed'
               : 'Yahoo Finance Feed'}
           </span>
 
@@ -65,9 +63,7 @@ export const OfficialMarketBanner: React.FC<Props> = ({
               ? 'Quote API returned no verified quotes'
               : !lastLiveSync
               ? 'Waiting for quote service'
-              : isLiveOfficial
-              ? 'Official source verified'
-              : 'Delayed third-party quote/history metadata'}
+              : 'Third-party quote/history data; not an official exchange feed'}
           </span>
           <span className="text-[#F7EEDB]/35" aria-hidden="true">·</span>
           <span className="font-mono text-[10px] sm:text-[11px] text-[#F7EEDB]/80 whitespace-nowrap tabular-nums">
@@ -87,7 +83,7 @@ export const OfficialMarketBanner: React.FC<Props> = ({
           <button
             onClick={() => setShowDetails(!showDetails)}
             className="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg bg-[#25221F] hover:bg-[#322D29] border border-[#D96B43]/30 text-[10px] sm:text-[11px] font-medium text-[#F7EEDB] transition active:scale-95 whitespace-nowrap shrink-0"
-            title="Inspect Official Sources & Integrity"
+            title="Inspect data sources and limitations"
           >
             <Info className="w-3 h-3 text-[#8CB4E0]" />
             <span>Sources</span>
@@ -107,7 +103,7 @@ export const OfficialMarketBanner: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Expandable Official Data Verification Drawer */}
+      {/* Expandable source and data-limitations drawer */}
       {showDetails && (
         <div className="max-w-7xl mx-auto mt-2 pt-2 border-t border-[#D96B43]/20 grid grid-cols-1 md:grid-cols-3 gap-2.5 text-[11px] animate-fadeIn">
           <div className="p-2.5 rounded-lg bg-[#131211]/80 border border-[#8CB4E0]/30 space-y-1">

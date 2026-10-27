@@ -4,8 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import type { User } from 'firebase/auth';
 import { StockData, SupportedLanguage, UserProfile, MarketAlert, CustomStrategy } from './types/market';
-import { INITIAL_STOCKS, INITIAL_ALERTS } from './data/mockMarketData';
+import { INITIAL_STOCKS } from './data/mockMarketData';
 import { Navbar } from './components/Navbar';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { AIExplanationModal } from './components/AIExplanationModal';
@@ -21,7 +22,7 @@ import {
   createVolatilityAlert,
   playVolatilityChime,
 } from './utils/volatilityAlertEngine';
-import { auth, getDbUserProfile, saveDbTradeAlert } from './services/firebase';
+import { auth, getDbUserProfile, saveDbTradeAlert, logOut } from './services/firebase';
 
 // Views
 import { LandingPage } from './views/LandingPage';
@@ -37,15 +38,16 @@ import { HistoricalDataView } from './views/HistoricalDataView';
 import { ProfileSettingsView } from './views/ProfileSettingsView';
 import { WatchlistDividendView } from './views/WatchlistDividendView';
 import { TradingGameView } from './views/TradingGameView';
+import { EODAnalysisView } from './views/EODAnalysisView';
 import { OfficialMarketBanner } from './components/OfficialMarketBanner';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { fetchRealStockQuotes, fetchRealStockHistory } from './services/marketDataClient';
 
 export default function App() {
   const [activeView, setActiveView] = useState<string>('landing');
-  const [stocks, setStocks] = useState<StockData[]>(INITIAL_STOCKS);
+  const [stocks, setStocks] = useState<StockData[]>([]);
   const [selectedStock, setSelectedStock] = useState<StockData>(INITIAL_STOCKS[0]);
-  const [alerts, setAlerts] = useState<MarketAlert[]>(INITIAL_ALERTS);
+  const [alerts, setAlerts] = useState<MarketAlert[]>([]);
   const [language, setLanguage] = useState<SupportedLanguage>('en');
   const [lastLiveSync, setLastLiveSync] = useState<string | null>(null);
   const [isLiveOfficial, setIsLiveOfficial] = useState<boolean>(false);
@@ -60,6 +62,9 @@ export default function App() {
 
   // Auth modal state
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const [authenticatedUser, setAuthenticatedUser] = useState<User | null>(auth.currentUser);
+  const [pendingView, setPendingView] = useState<string | null>(null);
 
   // Gemini Chatbot modal state
   const [chatbotOpen, setChatbotOpen] = useState(false);
@@ -82,64 +87,61 @@ export default function App() {
   const [activeVolatilityToast, setActiveVolatilityToast] = useState<MarketAlert | null>(null);
   const triggeredVolatilityTickersRef = React.useRef<Set<string>>(new Set());
 
-  // User profile with persistence
-  const [profile, setProfile] = useState<UserProfile>(() => {
-    try {
-      const saved = localStorage.getItem('marktxpo_user_profile') || localStorage.getItem('nsebse_user_profile');
-      if (saved) {
-        const parsed = JSON.parse(saved) as UserProfile;
-        // API credentials are session-only; remove any legacy key saved by older builds.
-        const safeProfile = { ...parsed, customApiKey: '' };
-        localStorage.setItem('marktxpo_user_profile', JSON.stringify(safeProfile));
-        localStorage.removeItem('nsebse_user_profile');
-        return safeProfile;
-      }
-    } catch {}
-    return {
-      name: 'Rohan Sharma',
-      email: 'rohan.sharma@marktxpo.ai',
-      customApiKey: '',
-      preferredExchange: 'NSE',
-      riskTolerance: 'Moderate',
-      soundAlerts: true,
-      language: 'en',
-    };
+  // Never hydrate an identity from browser storage. User identity comes from Firebase Auth.
+  const [profile, setProfile] = useState<UserProfile>({
+    name: 'Visitor',
+    email: '',
+    customApiKey: '',
+    preferredExchange: 'NSE',
+    riskTolerance: 'Moderate',
+    soundAlerts: true,
+    language: 'en',
   });
 
-  // Keep language in sync with profile
+// Keep language in sync with profile
   useEffect(() => {
     if (profile.language && profile.language !== language) {
       setLanguage(profile.language);
     }
   }, []);
 
-  // Synchronize authenticated user profile from Firestore cloud database
+  // Firebase is the source of identity; clearing auth also clears the in-memory model key.
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        const dbProfile = await getDbUserProfile(user.uid);
-        if (dbProfile) {
-          setProfile((prev) => ({
-            ...prev,
-            name: dbProfile.displayName || user.displayName || prev.name,
-            email: dbProfile.email || user.email || prev.email,
-            preferredExchange: (dbProfile.preferredExchange as any) || prev.preferredExchange,
-            language: (dbProfile.language as any) || prev.language,
-          }));
-          if (dbProfile.language) setLanguage(dbProfile.language as any);
-        } else if (user.displayName || user.email) {
-          setProfile((prev) => ({
-            ...prev,
-            name: user.displayName || prev.name,
-            email: user.email || prev.email,
-          }));
-        }
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      setAuthenticatedUser(user);
+      setAuthReady(true);
+
+      if (!user) {
+        setProfile((previous) => ({
+          ...previous,
+          name: 'Visitor',
+          email: '',
+          customApiKey: '',
+        }));
+        setExplainingStock(null);
+        setChatbotOpen(false);
+        setGmailOpen(false);
+        setGoogleChatOpen(false);
+        setPendingView(null);
+        setActiveView('landing');
+        return;
       }
+
+      const dbProfile = await getDbUserProfile(user.uid);
+      setProfile((previous) => ({
+        ...previous,
+        name: dbProfile?.displayName || user.displayName || 'Trader',
+        email: dbProfile?.email || user.email || '',
+        preferredExchange: (dbProfile?.preferredExchange as any) || previous.preferredExchange,
+        language: (dbProfile?.language as any) || previous.language,
+        customApiKey: '',
+      }));
+      if (dbProfile?.language) setLanguage(dbProfile.language as SupportedLanguage);
     });
-    return () => unsub();
+    return () => unsubscribe();
   }, []);
 
-  // Fetch quote and historical data through the configured server API
+// Fetch quote and historical data through the configured server API
   const handleRefreshRealData = async () => {
     setIsRefreshing(true);
     try {
@@ -151,11 +153,13 @@ export default function App() {
         setIsMarketDataUnavailable(false);
 
         setSelectedStock((prev) => {
-          const match = data.stocks.find((s) => s.ticker === prev.ticker);
+          const match = data.stocks.find((s) => s.ticker === prev.ticker) || data.stocks[0];
           if (!match) return prev;
           return {
             ...match,
-            history: prev.history && prev.history.length > 0 ? prev.history : match.history,
+            history: prev.ticker === match.ticker && prev.history && prev.history.length > 0
+              ? prev.history
+              : match.history,
           };
         });
       } else {
@@ -210,6 +214,12 @@ export default function App() {
   };
 
   const openAIExplanation = (stock: StockData) => {
+    if (!authReady || !authenticatedUser) {
+      setPendingView('dashboard');
+      setActiveView('landing');
+      setAuthModalOpen(true);
+      return;
+    }
     setExplainingStock(stock);
   };
 
@@ -281,6 +291,60 @@ export default function App() {
 
 
 
+  const openAuthForView = (targetView = 'dashboard') => {
+    if (authReady && authenticatedUser) {
+      setActiveView(targetView);
+      return;
+    }
+    setPendingView(targetView);
+    setAuthModalOpen(true);
+  };
+
+  const navigateToView = (view: string) => {
+    if (view === 'landing') {
+      setActiveView('landing');
+      return;
+    }
+    if (!authReady || !authenticatedUser) {
+      setPendingView(view);
+      setActiveView('landing');
+      setAuthModalOpen(true);
+      return;
+    }
+    setActiveView(view);
+  };
+
+  const runAuthenticatedAction = (action: () => void, targetView = 'dashboard') => {
+    if (!authReady || !authenticatedUser) {
+      setPendingView(targetView);
+      setActiveView('landing');
+      setAuthModalOpen(true);
+      return;
+    }
+    action();
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await logOut();
+    } finally {
+      setAuthenticatedUser(null);
+      setAuthReady(true);
+      setPendingView(null);
+      setProfile({
+        name: 'Visitor',
+        email: '',
+        customApiKey: '',
+        preferredExchange: 'NSE',
+        riskTolerance: 'Moderate',
+        soundAlerts: true,
+        language: 'en',
+      });
+      setLanguage('en');
+      setActiveView('landing');
+    }
+  };
+
   const unreadAlertsCount = alerts.filter((a) => a.triggered).length;
 
   return (
@@ -301,7 +365,7 @@ export default function App() {
       {/* Main Top Navigation */}
       <Navbar
         activeView={activeView}
-        setActiveView={setActiveView}
+        setActiveView={navigateToView}
         stocks={stocks}
         selectedStock={selectedStock}
         setSelectedStock={handleSelectStock}
@@ -313,23 +377,49 @@ export default function App() {
         profile={profile}
         unreadAlertsCount={unreadAlertsCount}
         openAIExplanation={openAIExplanation}
-        onOpenRegister={() => setAuthModalOpen(true)}
-        onOpenChatbot={() => setChatbotOpen(true)}
-        onOpenGoogleChat={() => handleOpenGoogleChat()}
-        onOpenGmail={() => setGmailOpen(true)}
+        onOpenRegister={() => openAuthForView('dashboard')}
+        onOpenChatbot={() => runAuthenticatedAction(() => setChatbotOpen(true))}
+        onOpenGoogleChat={() => runAuthenticatedAction(() => handleOpenGoogleChat())}
+        onOpenGmail={() => runAuthenticatedAction(() => setGmailOpen(true))}
+        isAuthenticated={Boolean(authReady && authenticatedUser)}
+        onSignOut={handleSignOut}
       />
 
       {/* Active View Router */}
       <main className="flex-1 w-full pb-24 lg:pb-10">
+        {activeView !== 'landing' && activeView !== 'profile' && activeView !== 'eod' && (stocks.length === 0 || isMarketDataUnavailable) ? (
+          <section className="mx-auto flex min-h-[55vh] max-w-3xl flex-col items-center justify-center gap-4 px-5 py-12 text-center">
+            <div className="rounded-2xl border border-[#D96B43]/25 bg-[#1A1816] p-6 shadow-xl">
+              <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#D96B43]">Market data unavailable</div>
+              <h2 className="mt-3 text-2xl font-black text-[#F7EEDB]">Waiting for a real market-data response</h2>
+              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[#F7EEDB]/60">
+                Stock-driven features are paused until the configured source returns usable quotes. This prevents placeholder prices or sample alerts from being presented as live market data.
+              </p>
+              <p className="mt-2 text-xs text-[#F7EEDB]/45">
+                The default source is Yahoo Finance third-party reference data, not an official NSE/BSE feed. Check provider access and deployment secrets before retrying.
+              </p>
+              <button
+                onClick={() => { void handleRefreshRealData(); }}
+                disabled={isRefreshing}
+                className="mt-5 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#D96B43] px-5 py-3 text-sm font-bold text-[#131211] disabled:opacity-50"
+              >
+                {isRefreshing ? 'Checking market source…' : 'Retry market data'}
+              </button>
+            </div>
+          </section>
+        ) : (
+          <>
         {activeView === 'landing' && (
           <LandingPage
-            onLaunchDashboard={() => setActiveView('dashboard')}
-            onExploreStock={(st) => {
+            onLaunchDashboard={() => navigateToView('dashboard')}
+            onLaunchEod={() => navigateToView('eod')}
+            onExploreStock={(st) => runAuthenticatedAction(() => {
               handleSelectStock(st);
+              navigateToView('dashboard');
               openAIExplanation(st);
-            }}
-            onPlayGame={() => setActiveView('game')}
-            onRegister={() => setAuthModalOpen(true)}
+            }, 'dashboard')}
+            onPlayGame={() => navigateToView('game')}
+            onRegister={() => openAuthForView('dashboard')}
             featuredStocks={stocks}
             language={language}
           />
@@ -342,7 +432,7 @@ export default function App() {
             setSelectedStock={handleSelectStock}
             openAIExplanation={openAIExplanation}
             alerts={alerts}
-            setActiveView={setActiveView}
+            setActiveView={navigateToView}
             language={language}
             customApiKey={profile.customApiKey}
           />
@@ -354,7 +444,7 @@ export default function App() {
             selectedStock={selectedStock}
             onSelectStock={handleSelectStock}
             openAIExplanation={openAIExplanation}
-            onNavigateToDashboard={() => setActiveView('dashboard')}
+            onNavigateToDashboard={() => navigateToView('dashboard')}
             language={language}
           />
         )}
@@ -452,6 +542,14 @@ export default function App() {
           />
         )}
 
+        {activeView === 'eod' && (
+          <EODAnalysisView
+            customApiKey={profile.customApiKey}
+            onUpdateApiKey={(key) => handleUpdateProfile({ customApiKey: key })}
+            language={language}
+          />
+        )}
+
         {activeView === 'profile' && (
           <ProfileSettingsView
             profile={profile}
@@ -464,12 +562,14 @@ export default function App() {
             onOpenChatbot={() => setChatbotOpen(true)}
           />
         )}
+          </>
+        )}
       </main>
  
       {/* Mobile Bottom Quick Navigation & PWA Action Bar */}
       <MobileBottomNav
         activeView={activeView}
-        setActiveView={setActiveView}
+        setActiveView={navigateToView}
         unreadAlertsCount={unreadAlertsCount}
         onOpenGmail={() => setGmailOpen(true)}
         onOpenGoogleChat={() => handleOpenGoogleChat()}
@@ -491,14 +591,20 @@ export default function App() {
         onClose={() => setAuthModalOpen(false)}
         language={language}
         onSuccess={async () => {
-          if (auth.currentUser) {
-            const dbP = await getDbUserProfile(auth.currentUser.uid);
+          const signedInUser = auth.currentUser;
+          setAuthenticatedUser(signedInUser);
+          if (signedInUser) {
+            const requestedView = pendingView || 'dashboard';
+            setPendingView(null);
+            setActiveView(requestedView);
+            const dbP = await getDbUserProfile(signedInUser.uid);
             if (dbP) {
               setProfile((prev) => ({
                 ...prev,
                 name: dbP.displayName || prev.name,
                 email: dbP.email || prev.email,
                 preferredExchange: (dbP.preferredExchange as any) || prev.preferredExchange,
+                customApiKey: '',
               }));
             }
           }

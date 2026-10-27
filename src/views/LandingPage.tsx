@@ -6,6 +6,7 @@ import { StockSparkline } from '../components/StockSparkline';
 import {
   TrendingUp,
   Brain,
+  Activity,
   ShieldCheck,
   ArrowRight,
   GitCompare,
@@ -22,6 +23,7 @@ import {
 
 interface Props {
   onLaunchDashboard: () => void;
+  onLaunchEod?: () => void;
   onExploreStock: (stock: StockData) => void;
   onPlayGame?: () => void;
   onRegister?: () => void;
@@ -31,6 +33,7 @@ interface Props {
 
 export const LandingPage: React.FC<Props> = ({
   onLaunchDashboard,
+  onLaunchEod,
   onExploreStock,
   onPlayGame,
   onRegister,
@@ -73,6 +76,16 @@ export const LandingPage: React.FC<Props> = ({
               <ArrowRight className="w-4 h-4" />
             </button>
 
+            {onLaunchEod && (
+              <button
+                onClick={onLaunchEod}
+                className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl border border-[#8CB4E0]/35 bg-[#8CB4E0]/10 hover:bg-[#8CB4E0]/20 text-[#BFD6F2] text-sm font-semibold transition whitespace-nowrap"
+              >
+                <Activity className="w-4 h-4" />
+                <span>Run End-of-Day Analysis</span>
+              </button>
+            )}
+
             {onPlayGame && (
               <button
                 onClick={onPlayGame}
@@ -94,8 +107,9 @@ export const LandingPage: React.FC<Props> = ({
             )}
 
             <button
-              onClick={() => onExploreStock(featuredStocks[0])}
-              className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl border border-[#D96B43]/30 bg-[#1A1816] hover:bg-[#25221F] text-[#F7EEDB] text-sm font-semibold transition whitespace-nowrap"
+              onClick={() => { if (featuredStocks[0]) onExploreStock(featuredStocks[0]); }}
+              disabled={featuredStocks.length === 0}
+              className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl border border-[#D96B43]/30 bg-[#1A1816] hover:bg-[#25221F] text-[#F7EEDB] text-sm font-semibold transition whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Brain className="w-4 h-4 text-[#8CB4E0]" />
               <span>Explore AI Trade Thesis</span>
@@ -211,14 +225,14 @@ export const LandingPage: React.FC<Props> = ({
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-4 h-4 text-[#22C55E] shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-[#F7EEDB]">Transparent Quantitative Auditing:</strong> Every trade setup is evaluated against deterministic indicators (RSI, 50/200 DMA, MACD, Volume) before AI commentary.
+                    <strong className="text-[#F7EEDB]">Transparent Quantitative Auditing:</strong> Technical evidence is calculated from fetched daily candles (RSI, moving averages, MACD and volume where available). AI commentary is separate and can be unavailable when a user's key or search sources are missing.
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-4 h-4 text-[#22C55E] shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-[#F7EEDB]">Custom Sentiment Models:</strong> Analyzes earnings commentary, media sentiment, and institutional flows to rank trade opportunities by confidence (90%+).
+                    <strong className="text-[#F7EEDB]">Source-Grounded AI Explanations:</strong> Uses your Gemini API key for evidence-based explanations and grounded news when sources are returned. FII/DII flows and social sentiment are not connected unless a verified data provider is configured.
                   </div>
                 </div>
 
@@ -240,7 +254,7 @@ export const LandingPage: React.FC<Props> = ({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-[#F7EEDB]">Market Snapshot &amp; Sparklines</h2>
-              <p className="text-xs text-[#F7EEDB]/60">Select any security to view dual-exchange charts and AI explanations</p>
+              <p className="text-xs text-[#F7EEDB]/60">Select a fetched market quote to view charts and AI explanations. Unavailable prices are not replaced with sample quotes.</p>
             </div>
             <button
               onClick={onLaunchDashboard}

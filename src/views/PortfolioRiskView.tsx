@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { PortfolioHolding, StockData, SupportedLanguage } from '../types/market';
 import { translations } from '../i18n/translations';
 import {
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { PortfolioReportModal } from '../components/PortfolioReportModal';
 import { generatePortfolioPdf } from '../utils/generatePortfolioPdf';
+import { auth, getDbPortfolio, saveDbPortfolioPosition, deleteDbPortfolioPosition } from '../services/firebase';
 
 interface Props {
   stocks: StockData[];
@@ -31,53 +32,7 @@ export const PortfolioRiskView: React.FC<Props> = ({
 }) => {
   const t = translations[language];
 
-  const [holdings, setHoldings] = useState<PortfolioHolding[]>([
-    {
-      id: 'h1',
-      ticker: 'RELIANCE',
-      name: 'Reliance Industries Ltd.',
-      exchange: 'NSE',
-      shares: 100,
-      averageBuyPrice: 2850.0,
-      currentPrice: 2980.5,
-      sector: 'Energy & Telecom',
-      beta: 1.05,
-    },
-    {
-      id: 'h2',
-      ticker: 'HDFCBANK',
-      name: 'HDFC Bank Ltd.',
-      exchange: 'NSE',
-      shares: 200,
-      averageBuyPrice: 1620.0,
-      currentPrice: 1680.2,
-      sector: 'Banking & Financials',
-      beta: 1.12,
-    },
-    {
-      id: 'h3',
-      ticker: 'TCS',
-      name: 'Tata Consultancy Services',
-      exchange: 'BSE',
-      shares: 50,
-      averageBuyPrice: 4050.0,
-      currentPrice: 4185.0,
-      sector: 'Information Tech',
-      beta: 0.78,
-    },
-    {
-      id: 'h4',
-      ticker: 'LT',
-      name: 'Larsen & Toubro Ltd.',
-      exchange: 'NSE',
-      shares: 60,
-      averageBuyPrice: 3450.0,
-      currentPrice: 3620.0,
-      sector: 'Capital Goods & Infra',
-      beta: 1.15,
-    },
-  ]);
-
+  const [holdings, setHoldings] = useState<PortfolioHolding[]>([]);
   const [aiRiskText, setAiRiskText] = useState<string>('');
   const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
   const [newTicker, setNewTicker] = useState<string>('ICICIBANK');
@@ -88,40 +43,98 @@ export const PortfolioRiskView: React.FC<Props> = ({
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
   const [quickDownloading, setQuickDownloading] = useState<boolean>(false);
   const [quickDownloadSuccess, setQuickDownloadSuccess] = useState<boolean>(false);
+  const [portfolioLoading, setPortfolioLoading] = useState(true);
+  const [portfolioError, setPortfolioError] = useState<string | null>(null);
+  const [savingPosition, setSavingPosition] = useState(false);
+  const signedInUid = auth.currentUser?.uid || '';
 
-  const { totalInvested, currentValue, totalPnL, totalPnLPercent, portfolioBeta, var95Rupees } =
+  useEffect(() => {
+    let active = true;
+    const loadPortfolio = async () => {
+      const user = auth.currentUser;
+      if (!user) {
+        setHoldings([]);
+        setPortfolioError('Sign in to load a personal portfolio.');
+        setPortfolioLoading(false);
+        return;
+      }
+      setPortfolioLoading(true);
+      setPortfolioError(null);
+      try {
+        const saved = await getDbPortfolio(user.uid);
+        const loaded = saved.filter((position) => position.status === 'OPEN').map((position): PortfolioHolding => {
+          const stock = stocks.find((item) => item.ticker === position.ticker);
+          return {
+            id: position.id,
+            ticker: position.ticker,
+            name: position.stockName || stock?.name || position.ticker,
+            exchange: position.exchange === 'BSE' ? 'BSE' : 'NSE',
+            shares: position.shares,
+            averageBuyPrice: position.entryPrice,
+            currentPrice: stock ? (position.exchange === 'BSE' ? stock.bsePrice : stock.nsePrice) : 0,
+            sector: stock?.sector || 'Unclassified',
+            beta: stock?.beta || 1,
+          };
+        });
+        if (active) setHoldings(loaded);
+      } catch (error) {
+        if (active) {
+          setHoldings([]);
+          setPortfolioError(error instanceof Error ? error.message : 'The personal portfolio could not be loaded.');
+        }
+      } finally {
+        if (active) setPortfolioLoading(false);
+      }
+    };
+    void loadPortfolio();
+    return () => { active = false; };
+  }, [signedInUid, stocks]);
+
+  const { totalInvested, currentValue, totalPnL, totalPnLPercent, portfolioBeta, var95Rupees, historicalVolatility } =
     useMemo(() => {
-      let invested = 0;
-      let current = 0;
-      let weightedBetaSum = 0;
-
-      holdings.forEach((h) => {
-        const cost = h.shares * h.averageBuyPrice;
-        const val = h.shares * h.currentPrice;
-        invested += cost;
-        current += val;
-        weightedBetaSum += val * h.beta;
-      });
-
+      const priced = holdings.filter((holding) => Number.isFinite(holding.currentPrice) && holding.currentPrice > 0);
+      const invested = priced.reduce((sum, holding) => sum + holding.shares * holding.averageBuyPrice, 0);
+      const current = priced.reduce((sum, holding) => sum + holding.shares * holding.currentPrice, 0);
+      const betaWeighted = priced.reduce((sum, holding) => sum + holding.shares * holding.currentPrice * holding.beta, 0);
       const pnl = current - invested;
-      const pnlPct = invested > 0 ? (pnl / invested) * 100 : 0;
-      const beta = current > 0 ? weightedBetaSum / current : 1.0;
-      const varPct = 1.645 * 0.011 * beta;
-      const varAmt = current * varPct;
-
+      const pnlPct = invested > 0 ? pnl / invested * 100 : 0;
+      const beta = current > 0 ? betaWeighted / current : 0;
+      const returnsByDate = new Map<string, { weighted: number; weight: number }>();
+      priced.forEach((holding) => {
+        const stock = stocks.find((item) => item.ticker === holding.ticker);
+        const candles = stock?.history || [];
+        const weight = holding.shares * holding.currentPrice;
+        for (let i = 1; i < candles.length; i += 1) {
+          const previous = candles[i - 1];
+          const currentBar = candles[i];
+          if (!Number.isFinite(previous.close) || previous.close <= 0 || !Number.isFinite(currentBar.close)) continue;
+          const dailyReturn = currentBar.close / previous.close - 1;
+          if (!Number.isFinite(dailyReturn)) continue;
+          const entry = returnsByDate.get(currentBar.date) || { weighted: 0, weight: 0 };
+          entry.weighted += dailyReturn * weight;
+          entry.weight += weight;
+          returnsByDate.set(currentBar.date, entry);
+        }
+      });
+      const dailyReturns = Array.from(returnsByDate.values()).filter((entry) => entry.weight > 0).map((entry) => entry.weighted / entry.weight);
+      const avgDailyReturn = dailyReturns.length ? dailyReturns.reduce((sum, value) => sum + value, 0) / dailyReturns.length : 0;
+      const volatility = dailyReturns.length > 1
+        ? Math.sqrt(dailyReturns.reduce((sum, value) => sum + Math.pow(value - avgDailyReturn, 2), 0) / (dailyReturns.length - 1))
+        : null;
       return {
         totalInvested: Math.round(invested),
         currentValue: Math.round(current),
         totalPnL: Math.round(pnl),
         totalPnLPercent: Math.round(pnlPct * 10) / 10,
         portfolioBeta: Math.round(beta * 100) / 100,
-        var95Rupees: Math.round(varAmt),
+        var95Rupees: volatility === null ? null : Math.round(current * 1.645 * volatility),
+        historicalVolatility: volatility === null ? null : volatility * 100,
       };
-    }, [holdings]);
-
+    }, [holdings, stocks]);
   const sectorAllocation = useMemo(() => {
     const map: Record<string, number> = {};
     holdings.forEach((h) => {
+      if (!Number.isFinite(h.currentPrice) || h.currentPrice <= 0) return;
       const val = h.shares * h.currentPrice;
       map[h.sector] = (map[h.sector] || 0) + val;
     });
@@ -132,36 +145,55 @@ export const PortfolioRiskView: React.FC<Props> = ({
     }));
   }, [holdings, currentValue]);
 
-  const handleAddHolding = () => {
-    const stock = stocks.find((s) => s.ticker === newTicker);
-    if (!stock) return;
-
-    const newH: PortfolioHolding = {
-      id: `h-${Date.now()}`,
-      ticker: stock.ticker,
-      name: stock.name,
-      exchange: newExchange,
-      shares: newShares,
-      averageBuyPrice: newBuyPrice,
-      currentPrice: newExchange === 'NSE' ? stock.nsePrice : stock.bsePrice,
-      sector: stock.sector,
-      beta: stock.beta,
-    };
-    setHoldings([...holdings, newH]);
-    setShowAddForm(false);
+  const handleAddHolding = async () => {
+    const user = auth.currentUser;
+    const stock = stocks.find((item) => item.ticker === newTicker);
+    if (!user || !stock) { setPortfolioError('Sign in and choose a security with a fetched quote.'); return; }
+    if (!Number.isFinite(newShares) || newShares <= 0 || !Number.isFinite(newBuyPrice) || newBuyPrice <= 0) {
+      setPortfolioError('Enter a positive share quantity and entry price.');
+      return;
+    }
+    const id = 'position-' + Date.now();
+    setSavingPosition(true);
+    setPortfolioError(null);
+    try {
+      await saveDbPortfolioPosition({
+        id, userId: user.uid, ticker: stock.ticker, stockName: stock.name, exchange: newExchange, type: 'BUY',
+        shares: Math.floor(newShares), entryPrice: newBuyPrice, isPaperTrade: true,
+        status: 'OPEN', createdAt: new Date().toISOString(),
+      });
+      const holding: PortfolioHolding = {
+        id, ticker: stock.ticker, name: stock.name, exchange: newExchange,
+        shares: Math.floor(newShares), averageBuyPrice: newBuyPrice,
+        currentPrice: newExchange === 'NSE' ? stock.nsePrice : stock.bsePrice,
+        sector: stock.sector, beta: stock.beta,
+      };
+      setHoldings((existing) => [...existing, holding]);
+      setShowAddForm(false);
+    } catch (error) {
+      setPortfolioError(error instanceof Error ? error.message : 'The position could not be saved to your account.');
+    } finally { setSavingPosition(false); }
   };
 
-  const handleRemoveHolding = (id: string) => {
-    setHoldings(holdings.filter((h) => h.id !== id));
+  const handleRemoveHolding = async (id: string) => {
+    const user = auth.currentUser;
+    if (!user) { setPortfolioError('Sign in again before deleting a position.'); return; }
+    setPortfolioError(null);
+    try {
+      await deleteDbPortfolioPosition(user.uid, id);
+      setHoldings((existing) => existing.filter((holding) => holding.id !== id));
+    } catch (error) {
+      setPortfolioError(error instanceof Error ? error.message : 'The position could not be deleted from your account.');
+    }
   };
-
   const handleRunAiRisk = async () => {
+    if (!customApiKey?.trim() || holdings.length === 0) { setAiRiskText('Add a saved position and provide your own Gemini API key to request an AI risk explanation.'); return; }
     setIsAiLoading(true);
     setAiRiskText('');
     try {
       const res = await fetch('/api/ai/portfolio-risk', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await auth.currentUser?.getIdToken() || '') },
         body: JSON.stringify({
           portfolio: holdings.map((h) => ({
             ticker: h.ticker,
@@ -182,7 +214,7 @@ export const PortfolioRiskView: React.FC<Props> = ({
       setAiRiskText(data.riskAnalysis);
     } catch (err: any) {
       console.warn(err);
-      setAiRiskText('Portfolio risk model validated against active market beta.');
+      setAiRiskText('AI risk explanation unavailable. No verified risk audit was returned. Check your own model key and retry.');
     } finally {
       setIsAiLoading(false);
     }
@@ -192,7 +224,7 @@ export const PortfolioRiskView: React.FC<Props> = ({
     setQuickDownloading(true);
     try {
       const doc = generatePortfolioPdf(
-        holdings,
+        holdings.filter((holding) => Number.isFinite(holding.currentPrice) && holding.currentPrice > 0),
         {
           totalInvested,
           currentValue,
@@ -232,7 +264,7 @@ export const PortfolioRiskView: React.FC<Props> = ({
               Portfolio Risk Surveillance &amp; Hedging
             </h1>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#D96B43]/10 text-[#F7EEDB] border border-[#D96B43]/20 font-bold font-mono">
-              VAR 95% STRESS MODEL
+              HISTORICAL PRICE-RISK MODEL
             </span>
           </div>
           <p className="text-xs text-[#F7EEDB]/60 mt-1">
@@ -279,6 +311,17 @@ export const PortfolioRiskView: React.FC<Props> = ({
           </button>
         </div>
       </div>
+
+      {(portfolioError || portfolioLoading || holdings.some((holding) => !Number.isFinite(holding.currentPrice) || holding.currentPrice <= 0)) && (
+        <div className="rounded-xl border border-amber-500/25 bg-amber-950/15 p-4 text-xs leading-5 text-amber-100">
+          {portfolioLoading ? 'Loading your saved positions from Firebase…' : null}
+          {portfolioError && <div role="alert">{portfolioError}</div>}
+          {!portfolioLoading && holdings.some((holding) => !Number.isFinite(holding.currentPrice) || holding.currentPrice <= 0) && (
+            <div>One or more positions have no current fetched quote. They remain visible but are excluded from current valuation and historical VaR until their ticker returns data.</div>
+          )}
+          <div className="mt-1 text-amber-100/60">No demo holdings are preloaded. These are user-entered paper-tracking positions, not brokerage trades.</div>
+        </div>
+      )}
 
       {/* Quick Download Success Notification Banner */}
       {quickDownloadSuccess && (
@@ -391,7 +434,7 @@ export const PortfolioRiskView: React.FC<Props> = ({
         </div>
 
         <div className="p-4 rounded-2xl bg-[#1A1816] border border-[#8CB4E0]/30 hover:border-[#8CB4E0] hover:shadow-[0_0_18px_rgba(140,180,224,0.3)] transition-all duration-200">
-          <span className="text-xs text-[#F7EEDB]/60">Portfolio Beta</span>
+          <span className="text-xs text-[#F7EEDB]/60">Reference Portfolio Beta</span>
           <div className="text-2xl font-bold text-[#8CB4E0] font-mono mt-1">{portfolioBeta}</div>
           <span className="text-[10px] text-[#F7EEDB]/50">
             {portfolioBeta > 1.1 ? 'High Sensitivity' : 'Balanced Exposure'}
@@ -399,9 +442,9 @@ export const PortfolioRiskView: React.FC<Props> = ({
         </div>
 
         <div className="p-4 rounded-2xl bg-[#1A1816] border border-[#EF4444]/30 hover:border-[#EF4444] hover:shadow-[0_0_18px_rgba(239,68,68,0.3)] transition-all duration-200">
-          <span className="text-xs text-[#F7EEDB]/60">1-Day VaR (95% Conf.)</span>
+          <span className="text-xs text-[#F7EEDB]/60">1-Day Historical VaR (95%)</span>
           <div className="text-2xl font-bold text-[#EF4444] font-mono mt-1">
-            -₹{var95Rupees.toLocaleString('en-IN')}
+            {var95Rupees === null ? 'Unavailable' : '-₹' + var95Rupees.toLocaleString('en-IN')}
           </div>
           <span className="text-[10px] text-[#F7EEDB]/40 font-mono">Estimated normal max daily loss</span>
         </div>
@@ -491,10 +534,11 @@ export const PortfolioRiskView: React.FC<Props> = ({
             </thead>
             <tbody className="divide-y divide-[#D96B43]/10">
               {holdings.map((h) => {
+                const quoteAvailable = Number.isFinite(h.currentPrice) && h.currentPrice > 0;
                 const totalCost = h.shares * h.averageBuyPrice;
-                const holdingVal = h.shares * h.currentPrice;
+                const holdingVal = quoteAvailable ? h.shares * h.currentPrice : 0;
                 const holdingPnL = holdingVal - totalCost;
-                const holdingPnLPct = (holdingPnL / totalCost) * 100;
+                const holdingPnLPct = totalCost > 0 ? (holdingPnL / totalCost) * 100 : 0;
                 const rawStock = stocks.find((s) => s.ticker === h.ticker);
 
                 return (
@@ -512,7 +556,7 @@ export const PortfolioRiskView: React.FC<Props> = ({
                     </td>
                     <td className="py-3 px-4 text-right text-[#F7EEDB]">{h.shares}</td>
                     <td className="py-3 px-4 text-right text-[#F7EEDB]/60">₹{h.averageBuyPrice.toFixed(2)}</td>
-                    <td className="py-3 px-4 text-right font-bold text-[#F7EEDB]">₹{h.currentPrice.toFixed(2)}</td>
+                    <td className="py-3 px-4 text-right font-bold text-[#F7EEDB]">{quoteAvailable ? "₹" + h.currentPrice.toFixed(2) : "Unavailable"}</td>
                     <td className="py-3 px-4 text-right font-bold text-[#F7EEDB]">
                       ₹{holdingVal.toLocaleString('en-IN')}
                     </td>

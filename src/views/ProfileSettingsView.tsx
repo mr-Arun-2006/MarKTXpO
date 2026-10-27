@@ -20,6 +20,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import {
+  auth,
   getActiveUser,
   subscribeToAuth,
   signInAsGuest,
@@ -77,7 +78,7 @@ export const ProfileSettingsView: React.FC<Props> = ({
     try {
       const res = await fetch('/api/ai/test-key', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await auth.currentUser?.getIdToken() || '') },
         body: JSON.stringify({
           customApiKey: apiKey.trim(),
           model: selectedTestModel,

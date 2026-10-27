@@ -164,7 +164,7 @@ export const StrategyBuilderView: React.FC<Props> = ({ onRunBacktest, language }
       {/* Preset Strategy Buttons */}
       <div className="space-y-2">
         <span className="text-xs font-bold text-[#F7EEDB]/60 uppercase tracking-wider font-mono">
-          One-Click Quant Templates:
+          Rule Templates · No Pre-Claimed Performance:
         </span>
         <div className="grid sm:grid-cols-3 gap-3">
           <button
@@ -173,9 +173,9 @@ export const StrategyBuilderView: React.FC<Props> = ({ onRunBacktest, language }
           >
             <div className="flex items-center justify-between">
               <span className="font-bold text-xs text-[#F7EEDB] group-hover:text-[#F7EEDB]">RSI Dip Hunter</span>
-              <span className="text-[10px] text-[#D96B43] font-mono">Win: ~72%</span>
+              <span className="text-[10px] text-[#D96B43] font-mono">RULE TEMPLATE</span>
             </div>
-            <p className="text-[11px] text-[#F7EEDB]/50">Accumulates oversold bluechips with delivery volume backing</p>
+            <p className="text-[11px] text-[#F7EEDB]/50">Uses RSI and observed price rules. Delivery data is unavailable; validate the strategy on fetched daily history.</p>
           </button>
 
           <button
@@ -184,9 +184,9 @@ export const StrategyBuilderView: React.FC<Props> = ({ onRunBacktest, language }
           >
             <div className="flex items-center justify-between">
               <span className="font-bold text-xs text-[#F7EEDB] group-hover:text-[#F7EEDB]">Golden Cross Surge</span>
-              <span className="text-[10px] text-[#F7EEDB] font-mono">RR: 1:3</span>
+              <span className="text-[10px] text-[#F7EEDB] font-mono">STOP/TARGET RULES</span>
             </div>
-            <p className="text-[11px] text-[#F7EEDB]/50">Rides large-cap multi-month trends above 200 DMA</p>
+            <p className="text-[11px] text-[#F7EEDB]/50">Uses moving-average rules against fetched daily closes; no performance result is implied.</p>
           </button>
 
           <button

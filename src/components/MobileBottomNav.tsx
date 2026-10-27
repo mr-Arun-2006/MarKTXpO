@@ -20,6 +20,7 @@ import {
   Gamepad2,
   Mail,
   MessageSquare,
+  Activity,
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
@@ -57,6 +58,7 @@ export const MobileBottomNav: React.FC<Props> = ({
     { id: 'backtest', label: 'Backtesting Engine', icon: Cpu, desc: 'Historical simulations' },
     { id: 'sectors', label: 'Sector Analysis', icon: Layers, desc: 'NSE sectoral indices' },
     { id: 'history', label: 'Bhavcopy Repository', icon: History, desc: 'Daily OHLCV records' },
+    { id: 'eod', label: 'EOD Analysis', icon: Activity, desc: 'Daily-close indicators and AI explanation' },
     { id: 'profile', label: 'Settings & Profile', icon: Settings, desc: 'Language, alerts, keys' },
   ];
 

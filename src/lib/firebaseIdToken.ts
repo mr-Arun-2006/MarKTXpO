@@ -125,8 +125,14 @@ export async function verifyFirebaseIdToken(token: string): Promise<VerifiedFire
   if (typeof claims.auth_time !== 'number' || !Number.isFinite(claims.auth_time) || claims.auth_time > now + 60) {
     throw new Error('Firebase ID token authentication time is invalid.');
   }
-  if (typeof claims.nbf === 'number' && claims.nbf > now + 60) {
+  if (
+    claims.nbf !== undefined &&
+    (typeof claims.nbf !== 'number' || !Number.isFinite(claims.nbf) || claims.nbf > now + 60)
+  ) {
     throw new Error('Firebase ID token is not yet valid.');
+  }
+  if (typeof claims.exp === 'number' && typeof claims.iat === 'number' && claims.exp <= claims.iat) {
+    throw new Error('Firebase ID token expiry is invalid.');
   }
   if (typeof claims.sub !== 'string' || claims.sub.length < 1 || claims.sub.length > 128) {
     throw new Error('Firebase ID token user ID is invalid.');

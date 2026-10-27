@@ -135,7 +135,7 @@ export async function verifyFirebaseIdToken(token: string): Promise<VerifiedFire
   return {
     ...claims,
     uid: claims.sub,
-    ...(typeof claims.email === 'string' ? { email: claims.email } : {}),
-    ...(typeof claims.email_verified === 'boolean' ? { email_verified: claims.email_verified } : {}),
+    email: typeof claims.email === 'string' ? claims.email : undefined,
+    email_verified: typeof claims.email_verified === 'boolean' ? claims.email_verified : undefined,
   };
 }

@@ -16,7 +16,7 @@ export interface PortfolioSummaryMetrics {
   totalPnL: number;
   totalPnLPercent: number;
   portfolioBeta: number;
-  var95Rupees: number;
+  var95Rupees: number | null;
   sectorAllocation: { sector: string; amount: number; percent: number }[];
 }
 
@@ -118,8 +118,8 @@ export function generatePortfolioPdf(
     },
     {
       label: '1-DAY VaR (95% CONF.)',
-      value: `-INR ${metrics.var95Rupees.toLocaleString('en-IN')}`,
-      sub: 'Estimated max daily risk',
+      value: metrics.var95Rupees === null ? 'Unavailable' : `-INR ${metrics.var95Rupees.toLocaleString('en-IN')}`,
+      sub: metrics.var95Rupees === null ? 'Insufficient fetched daily history' : 'Historical-return estimate; not a guarantee',
       color: [239, 68, 68],
     },
   ];

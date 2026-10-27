@@ -134,7 +134,7 @@ async function provisionStarterData(user: User, input?: Partial<RegisterUserInpu
     email: input?.email || user.email || existingProfile?.email || '',
     role: existingProfile?.role || 'user',
     language: input?.language || existingProfile?.language || 'en',
-    totalXP: existingProfile ? Math.max(existingProfile.totalXP, 100) : 100,
+    totalXP: existingProfile?.totalXP ?? 0,
     rankTitle: existingProfile?.rankTitle || 'Junior Floor Trader',
     preferredExchange: input?.preferredExchange || existingProfile?.preferredExchange || 'BOTH',
     experienceLevel: input?.experienceLevel || existingProfile?.experienceLevel || 'Beginner Student',
@@ -145,28 +145,11 @@ async function provisionStarterData(user: User, input?: Partial<RegisterUserInpu
   await saveDbUserProfile(profileDoc);
 
   if (!existingProfile) {
-    const starterTickers = [
-      { ticker: 'RELIANCE', name: 'Reliance Industries Ltd.', target: 2850 },
-      { ticker: 'TCS', name: 'Tata Consultancy Services', target: 4100 },
-      { ticker: 'HDFCBANK', name: 'HDFC Bank Ltd.', target: 1650 },
-    ];
-    for (const st of starterTickers) {
-      await saveDbWatchlistItem({
-        id: `w-${st.ticker}-${user.uid}`,
-        userId: user.uid,
-        ticker: st.ticker,
-        stockName: st.name,
-        exchange: input?.preferredExchange || 'BOTH',
-        targetPrice: st.target,
-        notes: 'Initial starter watchlist allocation.',
-        addedAt: new Date().toISOString(),
-      });
-    }
-
+    // Initialize empty progress; do not seed demo tickers into a new user's real watchlist.
     await saveDbGameProgress({
-      id: `progress-${user.uid}`,
+      id: 'progress-' + user.uid,
       userId: user.uid,
-      totalXP: 100,
+      totalXP: 0,
       currentStreak: 0,
       highestStreak: 0,
       completedLevels: '{}',
@@ -297,6 +280,7 @@ export interface DbPortfolioPosition {
   userId: string;
   ticker: string;
   stockName?: string;
+  exchange?: 'NSE' | 'BSE';
   type: 'BUY' | 'SHORT';
   shares: number;
   entryPrice: number;
@@ -391,17 +375,18 @@ export async function saveDbWatchlistItem(item: DbWatchlistItem): Promise<void> 
 }
 
 export async function deleteDbWatchlistItem(userId: string, itemId: string): Promise<void> {
+  if (!auth.currentUser || auth.currentUser.uid !== userId) {
+    throw new Error('Sign in with the matching account before deleting a watchlist item.');
+  }
   try {
-    const key = `marktxpo_watchlist_${userId}`;
-    const existing: DbWatchlistItem[] = JSON.parse(localStorage.getItem(key) || '[]');
-    localStorage.setItem(key, JSON.stringify(existing.filter((i) => i.id !== itemId)));
-  } catch {}
-  if (!auth.currentUser || auth.currentUser.uid !== userId) return;
-  try {
-    const itemRef = doc(db, 'users', userId, 'watchlist', itemId);
-    await deleteDoc(itemRef);
-  } catch (err) {
-    console.error('Failed to delete watchlist item from Firestore:', err);
+    await deleteDoc(doc(db, 'users', userId, 'watchlist', itemId));
+    try {
+      const key = 'marktxpo_watchlist_' + userId;
+      const existing: DbWatchlistItem[] = JSON.parse(localStorage.getItem(key) || '[]');
+      localStorage.setItem(key, JSON.stringify(existing.filter((item) => item.id !== itemId)));
+    } catch {}
+  } catch (error) {
+    throw new Error('Could not delete the watchlist item from Firestore.', { cause: error });
   }
 }
 
@@ -425,40 +410,48 @@ export async function getDbWatchlist(userId: string): Promise<DbWatchlistItem[]>
 
 // Portfolio CRUD
 export async function saveDbPortfolioPosition(pos: DbPortfolioPosition): Promise<void> {
-  try {
-    const key = `marktxpo_portfolio_${pos.userId}`;
-    const existing: DbPortfolioPosition[] = JSON.parse(localStorage.getItem(key) || '[]');
-    const filtered = existing.filter((p) => p.id !== pos.id);
-    filtered.push(pos);
-    localStorage.setItem(key, JSON.stringify(filtered));
-  } catch {}
-  if (!auth.currentUser || auth.currentUser.uid !== pos.userId) return;
+  if (!auth.currentUser || auth.currentUser.uid !== pos.userId) {
+    throw new Error('Sign in with the matching account before saving a portfolio position.');
+  }
   try {
     const posRef = doc(db, 'users', pos.userId, 'portfolio', pos.id);
     await setDoc(posRef, pos);
-  } catch (err) {
-    console.error('Failed to save portfolio position to Firestore:', err);
+    const key = 'marktxpo_portfolio_' + pos.userId;
+    const existing: DbPortfolioPosition[] = JSON.parse(localStorage.getItem(key) || '[]');
+    localStorage.setItem(key, JSON.stringify([...existing.filter((item) => item.id !== pos.id), pos]));
+  } catch (error) {
+    throw new Error('Could not save this portfolio position to Firestore. Check the connection and security rules.', { cause: error });
   }
 }
 
 export async function getDbPortfolio(userId: string): Promise<DbPortfolioPosition[]> {
-  if (auth.currentUser && auth.currentUser.uid === userId) {
-    try {
-      const collRef = collection(db, 'users', userId, 'portfolio');
-      const snap = await getDocs(collRef);
-      return snap.docs.map((d) => d.data() as DbPortfolioPosition);
-    } catch (err) {
-      console.error('Failed to get portfolio from Firestore:', err);
-    }
+  if (!auth.currentUser || auth.currentUser.uid !== userId) {
+    throw new Error('You can only read the signed-in user portfolio.');
   }
   try {
-    const key = `marktxpo_portfolio_${userId}`;
-    return JSON.parse(localStorage.getItem(key) || '[]');
-  } catch {
-    return [];
+    const collRef = collection(db, 'users', userId, 'portfolio');
+    const snap = await getDocs(collRef);
+    const positions = snap.docs.map((docSnap) => docSnap.data() as DbPortfolioPosition);
+    try { localStorage.setItem('marktxpo_portfolio_' + userId, JSON.stringify(positions)); } catch {}
+    return positions;
+  } catch (error) {
+    throw new Error('Could not load this portfolio from Firestore.', { cause: error });
   }
 }
 
+export async function deleteDbPortfolioPosition(userId: string, positionId: string): Promise<void> {
+  if (!auth.currentUser || auth.currentUser.uid !== userId) {
+    throw new Error('Sign in with the matching account before deleting a portfolio position.');
+  }
+  try {
+    await deleteDoc(doc(db, 'users', userId, 'portfolio', positionId));
+    const key = 'marktxpo_portfolio_' + userId;
+    const existing: DbPortfolioPosition[] = JSON.parse(localStorage.getItem(key) || '[]');
+    localStorage.setItem(key, JSON.stringify(existing.filter((item) => item.id !== positionId)));
+  } catch (error) {
+    throw new Error('Could not delete this portfolio position from Firestore.', { cause: error });
+  }
+}
 // Game Progress & Streaks Sync
 export async function saveDbGameProgress(progress: DbGameProgress): Promise<void> {
   try {

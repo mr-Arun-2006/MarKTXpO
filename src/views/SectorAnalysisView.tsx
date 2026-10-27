@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { SectorIndex, StockData, SupportedLanguage } from '../types/market';
-import { SECTOR_INDICES } from '../data/mockMarketData';
 import { translations } from '../i18n/translations';
 import { SectorPerformanceHeatmap } from '../components/SectorPerformanceHeatmap';
 import {
@@ -25,7 +24,43 @@ export const SectorAnalysisView: React.FC<Props> = ({
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const t = translations[language];
 
-  const filteredSectors = SECTOR_INDICES.filter(
+  // Indicative sector aggregates are calculated from the currently fetched quote set.
+  // They are not official sector-index returns or evidence of institutional flows.
+  const sectorIndices: SectorIndex[] = useMemo(() => {
+    const groups = new Map<string, StockData[]>();
+    stocks.forEach((stock) => {
+      const group = groups.get(stock.sector) || [];
+      group.push(stock);
+      groups.set(stock.sector, group);
+    });
+
+    const round = (value: number) => Math.round(value * 100) / 100;
+    return Array.from(groups.entries()).map(([name, members]) => {
+      const changePercent = members.reduce((sum, stock) => sum + stock.changePercent, 0) / members.length;
+      const peValues = members.map((stock) => stock.pe).filter((value) => Number.isFinite(value) && value > 0);
+      const pe = peValues.length ? peValues.reduce((sum, value) => sum + value, 0) / peValues.length : 0;
+      const top = [...members].sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))[0];
+      const status: SectorIndex['status'] = changePercent >= 1
+        ? 'Leading'
+        : changePercent > 0
+          ? 'Improving'
+          : changePercent <= -1
+            ? 'Lagging'
+            : 'Weakening';
+      return {
+        name,
+        changePercent: round(changePercent),
+        pe: round(pe),
+        marketCapRatio: 0,
+        status,
+        topStock: top?.ticker || '',
+        momentumScore: Math.max(0, Math.min(100, Math.round(50 + changePercent * 10))),
+        stocksCount: members.length,
+      };
+    }).sort((a, b) => b.changePercent - a.changePercent);
+  }, [stocks]);
+
+  const filteredSectors = sectorIndices.filter(
     (sec) => selectedStatus === 'ALL' || sec.status === selectedStatus
   );
 
@@ -48,11 +83,11 @@ export const SectorAnalysisView: React.FC<Props> = ({
               Institutional Sector Rotation Quadrants
             </h2>
             <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[#D96B43]/10 text-[#F7EEDB] border border-[#D96B43]/20 font-bold font-mono">
-              RRG METHODOLOGY
+              FETCHED QUOTES
             </span>
           </div>
           <p className="text-xs text-[#F7EEDB]/60 mt-1">
-            Tracking relative strength ratio (RS-Ratio) and relative momentum (RS-Momentum) vs Nifty 50 benchmark.
+            Average daily percent change of the fetched equities grouped by their sector labels. This is not an official index or institutional-flow dataset.
           </p>
         </div>
 
@@ -85,10 +120,10 @@ export const SectorAnalysisView: React.FC<Props> = ({
             <span className="w-2 h-2 rounded-full bg-[#D96B43] animate-pulse"></span>
           </div>
           <p className="text-[11px] text-[#F7EEDB]/70">
-            High momentum and relative strength. Institutional inflows dominant.
+            Highest average daily change among sectors represented in the fetched quote set.
           </p>
           <div className="space-y-1.5 pt-2">
-            {SECTOR_INDICES.filter((s) => s.status === 'Leading').map((sec) => (
+            {sectorIndices.filter((s) => s.status === 'Leading').map((sec) => (
               <div
                 key={sec.name}
                 className="flex items-center justify-between p-2 rounded-lg bg-[#131211] border border-[#D96B43]/10 text-xs"
@@ -109,10 +144,10 @@ export const SectorAnalysisView: React.FC<Props> = ({
             <span className="w-2 h-2 rounded-full bg-[#F7EEDB]"></span>
           </div>
           <p className="text-[11px] text-[#F7EEDB]/70">
-            Momentum turning positive from bottoms. Early stage trend reversals.
+            Positive average daily change among fetched constituents; not a confirmed trend reversal.
           </p>
           <div className="space-y-1.5 pt-2">
-            {SECTOR_INDICES.filter((s) => s.status === 'Improving').map((sec) => (
+            {sectorIndices.filter((s) => s.status === 'Improving').map((sec) => (
               <div
                 key={sec.name}
                 className="flex items-center justify-between p-2 rounded-lg bg-[#131211] border border-[#D96B43]/10 text-xs"
@@ -133,10 +168,10 @@ export const SectorAnalysisView: React.FC<Props> = ({
             <span className="w-2 h-2 rounded-full bg-[#F7EEDB]/60"></span>
           </div>
           <p className="text-[11px] text-[#F7EEDB]/60">
-            Losing relative strength after rallies. Selective profit-taking observed.
+            Small or negative average daily change; price movement alone does not identify a cause.
           </p>
           <div className="space-y-1.5 pt-2">
-            {SECTOR_INDICES.filter((s) => s.status === 'Weakening').map((sec) => (
+            {sectorIndices.filter((s) => s.status === 'Weakening').map((sec) => (
               <div
                 key={sec.name}
                 className="flex items-center justify-between p-2 rounded-lg bg-[#131211] border border-[#D96B43]/10 text-xs"
@@ -157,10 +192,10 @@ export const SectorAnalysisView: React.FC<Props> = ({
             <span className="w-2 h-2 rounded-full bg-[#EF4444]"></span>
           </div>
           <p className="text-[11px] text-[#F7EEDB]/60">
-            Underperforming broader bourses. Waiting for accumulation base.
+            Largest negative average daily change in this fetched sample.
           </p>
           <div className="space-y-1.5 pt-2">
-            {SECTOR_INDICES.filter((s) => s.status === 'Lagging').map((sec) => (
+            {sectorIndices.filter((s) => s.status === 'Lagging').map((sec) => (
               <div
                 key={sec.name}
                 className="flex items-center justify-between p-2 rounded-lg bg-[#131211] border border-[#D96B43]/10 text-xs"
@@ -176,8 +211,8 @@ export const SectorAnalysisView: React.FC<Props> = ({
       {/* Sector Multiples Table */}
       <div className="rounded-2xl bg-[#1A1816] border border-[#D96B43]/20 shadow-xl overflow-hidden">
         <div className="p-4 border-b border-[#D96B43]/15 flex items-center justify-between">
-          <h2 className="text-sm font-bold text-[#F7EEDB]">Indian Sector Indices &amp; Multiples</h2>
-          <span className="text-xs text-[#F7EEDB]/50">Weighted by Free Float Market Cap</span>
+          <h2 className="text-sm font-bold text-[#F7EEDB]">Sector Snapshot From Fetched Equities</h2>
+          <span className="text-xs text-[#F7EEDB]/50">P/E uses registry reference estimates; sector changes use fetched daily quotes</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -187,7 +222,7 @@ export const SectorAnalysisView: React.FC<Props> = ({
                 <th className="py-3 px-4 font-sans">Sector Index</th>
                 <th className="py-3 px-4 text-right">Daily Change</th>
                 <th className="py-3 px-4 text-center font-sans">Status</th>
-                <th className="py-3 px-4 text-right">P/E</th>
+                <th className="py-3 px-4 text-right">P/E ref.</th>
                 <th className="py-3 px-4 text-center">Momentum</th>
                 <th className="py-3 px-4 font-sans">Bellwether Anchor</th>
                 <th className="py-3 px-4 text-right font-sans">Action</th>

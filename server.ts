@@ -10,6 +10,7 @@ import {
   getRealIndianStockQuotes,
   getRealBenchmarks,
   getRealStockHistory,
+  getRealStockDividends,
 } from './src/services/realMarketData.ts';
 import { requireAuth, type AuthRequest } from './src/middleware/auth.ts';
 import { fetchEodHistory } from './src/services/eodDataProvider.ts';
@@ -827,6 +828,45 @@ app.get('/api/market/history', async (req, res) => {
     console.warn('[Market Feed] Error fetching history:', err?.message);
     return res.status(500).json({ error: 'Failed to fetch history' });
   }
+});
+
+// Historical dividend events only. Future announcement/record/payment dates are not inferred.
+app.get('/api/market/dividends', async (req, res) => {
+  const raw = typeof req.query.tickers === 'string'
+    ? req.query.tickers
+    : (typeof req.query.ticker === 'string' ? req.query.ticker : '');
+  const tickers = Array.from(new Set(raw.split(',').map((item) => item.trim().toUpperCase())))
+    .filter((ticker) => ticker.length > 0 && ticker.length <= 20)
+    .slice(0, 25);
+  const rangeInput = typeof req.query.range === 'string' ? req.query.range : '5y';
+  const range = rangeInput === '1y' || rangeInput === '10y' ? rangeInput : '5y';
+  if (tickers.length === 0) {
+    return res.status(400).json({ success: false, error: 'Provide at least one ticker symbol.' });
+  }
+
+  const coverage = await Promise.all(tickers.map(async (ticker) => {
+    try {
+      const events = await getRealStockDividends(ticker, range);
+      return { ticker, available: true, events };
+    } catch {
+      return { ticker, available: false, events: [] };
+    }
+  }));
+  const dividends = coverage.flatMap((item) => item.events).sort((left, right) => right.exDate.localeCompare(left.exDate));
+  return res.json({
+    success: true,
+    range,
+    tickers,
+    coverage: coverage.map((item) => ({ ticker: item.ticker, available: item.available, eventCount: item.events.length })),
+    count: dividends.length,
+    retrievedAt: new Date().toISOString(),
+    dataSource: 'Yahoo Finance historical dividend events (third-party; not an official NSE/BSE feed)',
+    dividends,
+    limitations: [
+      'Past dividend events only; future company announcements, record dates, payment dates and payout ratios are not inferred.',
+      'Coverage may be incomplete; verify against company filings or exchange announcements.',
+    ],
+  });
 });
 
 // 7. Cloud SQL Relational Endpoints (Protected by Firebase Auth)

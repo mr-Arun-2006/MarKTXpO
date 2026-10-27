@@ -755,3 +755,52 @@ export async function getRealStockHistory(
     return [];
   }
 }
+
+
+export interface RealDividendEvent {
+  ticker: string;
+  exDate: string;
+  amountPerShare: number;
+  source: string;
+}
+
+/** Return provider-reported historical dividend events only; future events are never inferred. */
+export async function getRealStockDividends(
+  ticker: string,
+  range: '1y' | '5y' | '10y' = '5y',
+): Promise<RealDividendEvent[]> {
+  if (!/^[A-Z0-9][A-Z0-9.&_-]{0,19}$/.test(ticker)) {
+    throw new Error('Invalid ticker symbol.');
+  }
+
+  const stock = INDIAN_STOCKS_REGISTRY.find((item) => item.ticker === ticker);
+  const symbol = stock ? stock.nseSymbol : ticker + '.NS';
+  const url = 'https://query1.finance.yahoo.com/v8/finance/chart/'
+    + encodeURIComponent(symbol)
+    + '?interval=1d&range=' + range + '&events=dividends';
+  const response = await fetch(url, {
+    headers: { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0' },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) throw new Error('Yahoo Finance returned HTTP ' + response.status + ' for historical dividend events.');
+
+  const payload: any = await response.json();
+  if (payload?.chart?.error) throw new Error('The provider returned an error for this ticker.');
+  const rawEvents = payload?.chart?.result?.[0]?.events?.dividends;
+  if (!rawEvents || typeof rawEvents !== 'object') return [];
+
+  return Object.values(rawEvents)
+    .map((event: any) => {
+      const dateSeconds = Number(event?.date);
+      const amountPerShare = Number(event?.amount);
+      if (!Number.isFinite(dateSeconds) || !Number.isFinite(amountPerShare) || amountPerShare < 0) return null;
+      return {
+        ticker,
+        exDate: new Date(dateSeconds * 1000).toISOString().slice(0, 10),
+        amountPerShare,
+        source: 'Yahoo Finance historical dividend events (third-party; not an official exchange feed)',
+      };
+    })
+    .filter((event): event is RealDividendEvent => event !== null)
+    .sort((a, b) => b.exDate.localeCompare(a.exDate));
+}

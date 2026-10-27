@@ -343,6 +343,8 @@ export const DashboardView: React.FC<Props> = ({
                 onSelectStock={setSelectedStock}
                 openAIExplanation={openAIExplanation}
                 language={language}
+                customApiKey={customApiKey}
+                onOpenEod={() => setActiveView('eod')}
               />
             ) : (
               <AINewsDigest

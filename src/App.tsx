@@ -153,11 +153,13 @@ export default function App() {
         setIsMarketDataUnavailable(false);
 
         setSelectedStock((prev) => {
-          const match = data.stocks.find((s) => s.ticker === prev.ticker);
+          const match = data.stocks.find((s) => s.ticker === prev.ticker) || data.stocks[0];
           if (!match) return prev;
           return {
             ...match,
-            history: prev.history && prev.history.length > 0 ? prev.history : match.history,
+            history: prev.ticker === match.ticker && prev.history && prev.history.length > 0
+              ? prev.history
+              : match.history,
           };
         });
       } else {
@@ -385,7 +387,7 @@ export default function App() {
 
       {/* Active View Router */}
       <main className="flex-1 w-full pb-24 lg:pb-10">
-        {activeView !== 'landing' && activeView !== 'profile' && activeView !== 'eod' && stocks.length === 0 ? (
+        {activeView !== 'landing' && activeView !== 'profile' && activeView !== 'eod' && (stocks.length === 0 || isMarketDataUnavailable) ? (
           <section className="mx-auto flex min-h-[55vh] max-w-3xl flex-col items-center justify-center gap-4 px-5 py-12 text-center">
             <div className="rounded-2xl border border-[#D96B43]/25 bg-[#1A1816] p-6 shadow-xl">
               <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#D96B43]">Market data unavailable</div>
@@ -410,6 +412,7 @@ export default function App() {
         {activeView === 'landing' && (
           <LandingPage
             onLaunchDashboard={() => navigateToView('dashboard')}
+            onLaunchEod={() => navigateToView('eod')}
             onExploreStock={(st) => runAuthenticatedAction(() => {
               handleSelectStock(st);
               navigateToView('dashboard');

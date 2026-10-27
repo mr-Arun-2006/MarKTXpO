@@ -6,6 +6,7 @@ import { StockSparkline } from '../components/StockSparkline';
 import {
   TrendingUp,
   Brain,
+  Activity,
   ShieldCheck,
   ArrowRight,
   GitCompare,
@@ -22,6 +23,7 @@ import {
 
 interface Props {
   onLaunchDashboard: () => void;
+  onLaunchEod?: () => void;
   onExploreStock: (stock: StockData) => void;
   onPlayGame?: () => void;
   onRegister?: () => void;
@@ -31,6 +33,7 @@ interface Props {
 
 export const LandingPage: React.FC<Props> = ({
   onLaunchDashboard,
+  onLaunchEod,
   onExploreStock,
   onPlayGame,
   onRegister,
@@ -72,6 +75,16 @@ export const LandingPage: React.FC<Props> = ({
               <span>Launch Terminal</span>
               <ArrowRight className="w-4 h-4" />
             </button>
+
+            {onLaunchEod && (
+              <button
+                onClick={onLaunchEod}
+                className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl border border-[#8CB4E0]/35 bg-[#8CB4E0]/10 hover:bg-[#8CB4E0]/20 text-[#BFD6F2] text-sm font-semibold transition whitespace-nowrap"
+              >
+                <Activity className="w-4 h-4" />
+                <span>Run End-of-Day Analysis</span>
+              </button>
+            )}
 
             {onPlayGame && (
               <button

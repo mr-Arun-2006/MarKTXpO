@@ -102,26 +102,25 @@ export function subscribeToAuth(callback: (user: User | null) => void): () => vo
 // Sync authenticated Firebase or fallback trader user with Cloud SQL backend
 async function syncUserToCloudSql(user: User, displayName?: string): Promise<void> {
   try {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'X-Trader-UID': user.uid,
-      'X-Trader-Email': user.email || `${user.uid}@user.marktxpo.ai`,
-    };
-    if (typeof user.getIdToken === 'function') {
-      try {
-        const token = await user.getIdToken();
-        headers.Authorization = `Bearer ${token}`;
-      } catch {}
-    }
-    await fetch('/api/sql/sync-user', {
+    const token = await user.getIdToken();
+    if (!token) throw new Error('Firebase did not return an ID token.');
+
+    const response = await fetch('/api/sql/sync-user', {
       method: 'POST',
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({
         displayName: displayName || user.displayName || undefined,
       }),
     });
-  } catch {
-    // Non-fatal if Cloud SQL sync endpoint is unreachable
+    if (!response.ok) {
+      console.warn(`[Cloud SQL] User sync returned HTTP ${response.status}; Firebase Auth remains the identity source.`);
+    }
+  } catch (error) {
+    // SQL profile sync is best-effort; never substitute caller-controlled identity headers.
+    console.warn('[Cloud SQL] User sync unavailable:', error instanceof Error ? error.message : 'unknown error');
   }
 }
 
@@ -195,9 +194,20 @@ export async function signInWithGoogle(customInput?: Partial<RegisterUserInput>)
 
 // Sign out from the real Firebase session and discard legacy simulated account records.
 export async function logOut(): Promise<void> {
+  const uid = auth.currentUser?.uid;
   try {
     localStorage.removeItem(LEGACY_FALLBACK_SESSION_KEY);
     localStorage.removeItem(LEGACY_REGISTERED_ACCOUNTS_KEY);
+    localStorage.removeItem('marktxpo_user_profile');
+    if (uid) {
+      for (const key of [
+        `marktxpo_profile_${uid}`,
+        `marktxpo_watchlist_${uid}`,
+        `marktxpo_portfolio_${uid}`,
+        `marktxpo_game_${uid}`,
+        `marktxpo_alerts_${uid}`,
+      ]) localStorage.removeItem(key);
+    }
   } catch {}
   setGmailAccessToken(null);
   await fbSignOut(auth);
@@ -222,6 +232,10 @@ export async function registerNewUser(input: RegisterUserInput): Promise<User> {
   if (!email || !email.includes('@')) throw new Error('Enter a valid email address.');
   if (!input.password || input.password.length < 6) throw new Error('Password must contain at least 6 characters.');
   if (!displayName || displayName.length > 100) throw new Error('Name must contain 1–100 characters.');
+  const initialCapital = input.virtualCapital ?? 1000000;
+  if (!Number.isFinite(initialCapital) || initialCapital < 100000 || initialCapital > 10000000) {
+    throw new Error('Starting virtual capital must be between ₹1 lakh and ₹1 crore.');
+  }
 
   const credential = await createUserWithEmailAndPassword(auth, email, input.password);
   if (displayName) {
@@ -318,6 +332,7 @@ export interface DbGameProgress {
 
 // Save or Update User Profile
 export async function saveDbUserProfile(profile: DbUserProfile): Promise<void> {
+  if (!auth.currentUser || auth.currentUser.uid !== profile.uid) throw new Error('Sign in with the matching account before saving a user profile.');
   try {
     localStorage.setItem(`marktxpo_profile_${profile.uid}`, JSON.stringify(profile));
   } catch {}
@@ -333,6 +348,7 @@ export async function saveDbUserProfile(profile: DbUserProfile): Promise<void> {
 
 // Fetch User Profile
 export async function getDbUserProfile(uid: string): Promise<DbUserProfile | null> {
+  if (!auth.currentUser || auth.currentUser.uid !== uid) return null;
   if (auth.currentUser && auth.currentUser.uid === uid) {
     try {
       const userRef = doc(db, 'users', uid);
@@ -357,6 +373,7 @@ export async function getDbUserProfile(uid: string): Promise<DbUserProfile | nul
 
 // Watchlist CRUD
 export async function saveDbWatchlistItem(item: DbWatchlistItem): Promise<void> {
+  if (!auth.currentUser || auth.currentUser.uid !== item.userId) throw new Error('Sign in with the matching account before saving a watchlist item.');
   try {
     const key = `marktxpo_watchlist_${item.userId}`;
     const existing: DbWatchlistItem[] = JSON.parse(localStorage.getItem(key) || '[]');
@@ -391,6 +408,7 @@ export async function deleteDbWatchlistItem(userId: string, itemId: string): Pro
 }
 
 export async function getDbWatchlist(userId: string): Promise<DbWatchlistItem[]> {
+  if (!auth.currentUser || auth.currentUser.uid !== userId) return [];
   if (auth.currentUser && auth.currentUser.uid === userId) {
     try {
       const collRef = collection(db, 'users', userId, 'watchlist');
@@ -454,6 +472,7 @@ export async function deleteDbPortfolioPosition(userId: string, positionId: stri
 }
 // Game Progress & Streaks Sync
 export async function saveDbGameProgress(progress: DbGameProgress): Promise<void> {
+  if (!auth.currentUser || auth.currentUser.uid !== progress.userId) throw new Error('Sign in with the matching account before saving game progress.');
   try {
     localStorage.setItem(`marktxpo_game_${progress.userId}`, JSON.stringify(progress));
   } catch {}
@@ -468,6 +487,7 @@ export async function saveDbGameProgress(progress: DbGameProgress): Promise<void
 }
 
 export async function getDbGameProgress(userId: string): Promise<DbGameProgress | null> {
+  if (!auth.currentUser || auth.currentUser.uid !== userId) return null;
   if (auth.currentUser && auth.currentUser.uid === userId) {
     try {
       const collRef = collection(db, 'users', userId, 'game_progress');
@@ -488,6 +508,7 @@ export async function getDbGameProgress(userId: string): Promise<DbGameProgress 
 
 // Trade Alerts CRUD
 export async function saveDbTradeAlert(alert: DbTradeAlert): Promise<void> {
+  if (!auth.currentUser || auth.currentUser.uid !== alert.userId) throw new Error('Sign in with the matching account before saving an alert.');
   try {
     const key = `marktxpo_alerts_${alert.userId}`;
     const existing: DbTradeAlert[] = JSON.parse(localStorage.getItem(key) || '[]');
@@ -505,6 +526,7 @@ export async function saveDbTradeAlert(alert: DbTradeAlert): Promise<void> {
 }
 
 export async function deleteDbTradeAlert(userId: string, alertId: string): Promise<void> {
+  if (!auth.currentUser || auth.currentUser.uid !== userId) throw new Error('Sign in with the matching account before deleting an alert.');
   try {
     const key = `marktxpo_alerts_${userId}`;
     const existing: DbTradeAlert[] = JSON.parse(localStorage.getItem(key) || '[]');
@@ -520,6 +542,7 @@ export async function deleteDbTradeAlert(userId: string, alertId: string): Promi
 }
 
 export async function getDbTradeAlerts(userId: string): Promise<DbTradeAlert[]> {
+  if (!auth.currentUser || auth.currentUser.uid !== userId) return [];
   if (auth.currentUser && auth.currentUser.uid === userId) {
     try {
       const collRef = collection(db, 'users', userId, 'alerts');

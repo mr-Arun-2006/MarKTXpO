@@ -809,7 +809,9 @@ app.get('/api/market/benchmarks', async (req, res) => {
   }
 });
 
-app.get('/api/market/history', requireAuth, async (req: AuthRequest, res) => {
+// Historical candles are non-user-specific. Keep the chart/landing client public;
+// /api/market remains rate-limited and this handler validates query inputs.
+app.get('/api/market/history', async (req, res) => {
   try {
     const ticker = (typeof req.query.ticker === 'string' ? req.query.ticker : 'RELIANCE').toUpperCase();
     const range = (req.query.range as string) || '3mo';
@@ -884,7 +886,15 @@ app.post('/api/sql/sync-user', requireAuth, async (req: AuthRequest, res) => {
     if (!uid) {
       return res.status(401).json({ error: 'Missing user identification' });
     }
-    const synced = await getOrCreateUser(uid, email, req.body?.displayName);
+    const requestedName = req.body?.displayName;
+    if (requestedName !== undefined
+      && (typeof requestedName !== 'string' || requestedName.trim().length > 100)) {
+      return res.status(400).json({ error: 'Display name must be a string of at most 100 characters.' });
+    }
+    const displayName = typeof requestedName === 'string' && requestedName.trim()
+      ? requestedName.trim()
+      : undefined;
+    const synced = await getOrCreateUser(uid, email, displayName);
     return res.json({ success: true, user: synced });
   } catch (err: any) {
     console.error('[Cloud SQL] User sync error:', err?.message);

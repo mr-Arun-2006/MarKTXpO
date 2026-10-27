@@ -1,17 +1,23 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { initializeApp, getApps } from 'firebase-admin/app';
+import { cert, getApps, initializeApp, type ServiceAccount } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import firebaseConfigData from '../../firebase-applet-config.json';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const configPath = path.resolve(__dirname, '../../firebase-applet-config.json');
-const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+function loadServiceAccount(): ServiceAccount | undefined {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+  if (!raw) return undefined;
+
+  try {
+    return JSON.parse(raw) as ServiceAccount;
+  } catch (error) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON.', { cause: error });
+  }
+}
 
 if (!getApps().length) {
+  const serviceAccount = loadServiceAccount();
   initializeApp({
-    projectId: firebaseConfig.projectId,
+    projectId: firebaseConfigData.projectId,
+    ...(serviceAccount ? { credential: cert(serviceAccount) } : {}),
   });
 }
 

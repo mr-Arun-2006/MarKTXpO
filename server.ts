@@ -6,11 +6,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import {
+  INDIAN_STOCKS_REGISTRY,
   getRealIndianStockQuotes,
   getRealBenchmarks,
   getRealStockHistory,
 } from './src/services/realMarketData.ts';
 import { requireAuth, type AuthRequest } from './src/middleware/auth.ts';
+import { fetchEodHistory } from './src/services/eodDataProvider.ts';
+import { calculateEodTechnicalSnapshot } from './src/utils/eodTechnicalAnalysis.ts';
 import {
   getOrCreateUser,
   getUserWatchlist,
@@ -107,7 +110,8 @@ function getGeminiClient(customApiKey?: string) {
   const suppliedKey = typeof customApiKey === 'string' ? customApiKey.trim() : '';
   if (suppliedKey.length > 300) return null;
 
-  const apiKey = suppliedKey || process.env.GEMINI_API_KEY;
+  const allowSharedKey = process.env.ALLOW_SHARED_GEMINI_KEY?.trim().toLowerCase() === 'true';
+  const apiKey = suppliedKey || (allowSharedKey ? process.env.GEMINI_API_KEY : undefined);
   if (!apiKey || apiKey === 'MY_GEMINI_API_KEY' || apiKey.startsWith('MY_')) return null;
   return new GoogleGenAI({
     apiKey,
@@ -628,6 +632,139 @@ You can still use the product for general educational explanations. For stock-sp
   } catch (err: any) {
     console.error('[AI Chat Error]:', err?.message);
     return res.status(500).json({ error: 'Failed to process AI chat query.' });
+  }
+});
+
+// Authenticated EOD analysis: use fetched daily candles and the signed-in user's own model key.
+app.post('/api/market/eod-analysis', requireAuth, async (req: AuthRequest, res) => {
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const ticker = typeof body.ticker === 'string' ? body.ticker.trim().toUpperCase() : '';
+  const userApiKey = typeof body.userApiKey === 'string' ? body.userApiKey.trim() : '';
+  const languageCode = typeof body.language === 'string' ? body.language.slice(0, 12) : 'en';
+  const languageNames: Record<string, string> = {
+    en: 'English', hi: 'Hindi', gu: 'Gujarati', ta: 'Tamil', mr: 'Marathi', bn: 'Bengali',
+  };
+  const language = languageNames[languageCode] || 'English';
+
+  if (!req.user?.uid) return res.status(401).json({ success: false, error: 'Sign in again to run EOD analysis.' });
+  if (!/^[A-Z0-9][A-Z0-9.&_-]{0,19}$/.test(ticker)) {
+    return res.status(400).json({ success: false, error: 'Enter a valid NSE symbol (1–20 supported characters).' });
+  }
+  if (userApiKey.length < 8 || userApiKey.length > 300 || userApiKey.startsWith('MY_')) {
+    return res.status(400).json({ success: false, error: 'Enter a valid Gemini API key. It is used for this request and is not persisted by the app.' });
+  }
+
+  try {
+    const marketData = await fetchEodHistory(ticker);
+    const registryItem = INDIAN_STOCKS_REGISTRY.find((stock) => stock.ticker === ticker);
+    const snapshot = calculateEodTechnicalSnapshot(
+      ticker,
+      registryItem?.name || ticker,
+      marketData.candles,
+      new Date(),
+      marketData.source,
+    );
+    if (!snapshot) {
+      return res.status(422).json({
+        success: false,
+        error: 'No completed daily candles were available to calculate an EOD report for this symbol.',
+      });
+    }
+
+    let aiAnalysis: any = null;
+    let aiError: string | undefined;
+    let sources: Array<{ title: string; url: string }> = [];
+    const ai = getGeminiClient(userApiKey);
+    if (!ai) {
+      aiError = 'The supplied model key could not initialize the Gemini client.';
+    } else {
+      const prompt = `
+You are explaining an end-of-day report for an Indian equity. Treat all values in the supplied JSON as observed third-party daily candle data, not as official exchange data.
+Ticker: ${ticker}; company: ${registryItem?.name || ticker}; preferred explanation language: ${language}.
+EOD technical snapshot (do not alter numeric values):
+${JSON.stringify(snapshot)}
+
+Use Google Search grounding for recent company-specific news only when available. In "newsContext", describe only material facts supported by grounded sources; otherwise write "No grounded company-news sources were available for this request." Do not invent headlines, FII/DII flows, fundamentals, delivery percentages, corporate actions, price targets, stop-loss levels or order-book liquidity.
+Return JSON with:
+{
+  "bias": "Bullish" | "Bearish" | "Mixed" | "Neutral",
+  "summary": "A short explanation that separates measured indicators from interpretation.",
+  "bullishFactors": ["evidence-based items; can be empty"],
+  "bearishFactors": ["evidence-based risks; can be empty"],
+  "watchItems": ["what to verify in the next session; not a recommendation"],
+  "newsContext": "Grounded news summary or explicit unavailable status",
+  "disclaimer": "A brief note that this is educational analysis, not personalized financial advice."
+}
+Use only the supplied technical values and the sources actually returned by grounding. Do not claim an executable arbitrage opportunity. Keep arrays to five items and all output in ${language}.
+`;
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: prompt,
+          config: {
+            tools: [{ googleSearch: {} }],
+            responseMimeType: 'application/json',
+          },
+        });
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(response.text || '');
+        } catch {
+          const match = response.text?.match(/\{[\s\S]*\}/);
+          if (match) {
+            try { parsed = JSON.parse(match[0]); } catch { parsed = null; }
+          }
+        }
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          const safeArray = (value: unknown) => Array.isArray(value)
+            ? value.filter((item: unknown) => typeof item === 'string').slice(0, 5).map((item: string) => item.slice(0, 500))
+            : [];
+          aiAnalysis = {
+            bias: ['Bullish', 'Bearish', 'Mixed', 'Neutral'].includes(parsed.bias) ? parsed.bias : 'Mixed',
+            summary: typeof parsed.summary === 'string' ? parsed.summary.slice(0, 2500) : '',
+            bullishFactors: safeArray(parsed.bullishFactors),
+            bearishFactors: safeArray(parsed.bearishFactors),
+            watchItems: safeArray(parsed.watchItems),
+            newsContext: typeof parsed.newsContext === 'string' ? parsed.newsContext.slice(0, 1500) : 'No grounded company-news sources were available for this request.',
+            disclaimer: typeof parsed.disclaimer === 'string' ? parsed.disclaimer.slice(0, 500) : 'Educational information only; not personalized financial advice.',
+          };
+        } else {
+          aiError = 'The model returned an invalid response format. Retry the analysis.';
+        }
+
+        const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+        if (Array.isArray(groundingChunks)) {
+          sources = groundingChunks
+            .map((chunk: any) => ({ title: chunk.web?.title, url: chunk.web?.uri }))
+            .filter((item: any) => typeof item.url === 'string' && /^https:\/\//i.test(item.url))
+            .slice(0, 8);
+        }
+      } catch (error) {
+        // Avoid sending SDK error details that could contain request or account metadata.
+        console.warn('[EOD Analysis] Gemini request failed.');
+        aiError = 'Gemini could not complete this request. Check the key and model access; the computed technical report is still available.';
+      }
+    }
+
+    return res.json({
+      success: true,
+      report: snapshot,
+      aiAnalysis,
+      aiError,
+      sources,
+      provider: marketData.provider,
+      fetchedAt: new Date().toISOString(),
+      dataAvailable: true,
+      aiAvailable: Boolean(aiAnalysis),
+    });
+  } catch (error) {
+    console.warn('[EOD Analysis] Market data request failed:', error instanceof Error ? error.message : 'Unknown provider error');
+    return res.status(502).json({
+      success: false,
+      error: error instanceof Error
+        ? error.message.slice(0, 240)
+        : 'The configured market-data provider did not return usable daily candles.',
+    });
   }
 });
 

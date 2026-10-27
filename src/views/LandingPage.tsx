@@ -94,8 +94,9 @@ export const LandingPage: React.FC<Props> = ({
             )}
 
             <button
-              onClick={() => onExploreStock(featuredStocks[0])}
-              className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl border border-[#D96B43]/30 bg-[#1A1816] hover:bg-[#25221F] text-[#F7EEDB] text-sm font-semibold transition whitespace-nowrap"
+              onClick={() => { if (featuredStocks[0]) onExploreStock(featuredStocks[0]); }}
+              disabled={featuredStocks.length === 0}
+              className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl border border-[#D96B43]/30 bg-[#1A1816] hover:bg-[#25221F] text-[#F7EEDB] text-sm font-semibold transition whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Brain className="w-4 h-4 text-[#8CB4E0]" />
               <span>Explore AI Trade Thesis</span>
@@ -240,7 +241,7 @@ export const LandingPage: React.FC<Props> = ({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-[#F7EEDB]">Market Snapshot &amp; Sparklines</h2>
-              <p className="text-xs text-[#F7EEDB]/60">Select any security to view dual-exchange charts and AI explanations</p>
+              <p className="text-xs text-[#F7EEDB]/60">Select a fetched market quote to view charts and AI explanations. Unavailable prices are not replaced with sample quotes.</p>
             </div>
             <button
               onClick={onLaunchDashboard}

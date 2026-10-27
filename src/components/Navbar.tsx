@@ -26,6 +26,8 @@ import {
   Bot,
   MessageSquare,
   Mail,
+  Activity,
+  LogOut,
 } from 'lucide-react';
 
 interface Props {
@@ -43,6 +45,8 @@ interface Props {
   onOpenChatbot?: () => void;
   onOpenGoogleChat?: () => void;
   onOpenGmail?: () => void;
+  isAuthenticated?: boolean;
+  onSignOut?: () => Promise<void> | void;
 }
 
 export const Navbar: React.FC<Props> = ({
@@ -60,6 +64,8 @@ export const Navbar: React.FC<Props> = ({
   onOpenChatbot,
   onOpenGoogleChat,
   onOpenGmail,
+  isAuthenticated = false,
+  onSignOut,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -79,6 +85,7 @@ export const Navbar: React.FC<Props> = ({
   const navItems = [
     { id: 'landing', label: t.landing, icon: Home },
     { id: 'dashboard', label: t.dashboard, icon: BarChart3 },
+    { id: 'eod', label: 'EOD Analysis', icon: Activity },
     { id: 'watchlist', label: t.watchlist, icon: Coins },
     { id: 'game', label: t.games, icon: Gamepad2 },
     { id: 'compare', label: t.compare, icon: GitCompare },
@@ -106,13 +113,7 @@ export const Navbar: React.FC<Props> = ({
     change: number;
     changePercent: number;
     isLive: boolean;
-  }[]>([
-    { name: 'NIFTY 50', exchange: 'NSE', value: 23146.15, change: 148.85, changePercent: 0.65, isLive: true },
-    { name: 'SENSEX', exchange: 'BSE', value: 74729.27, change: 413.67, changePercent: 0.56, isLive: true },
-    { name: 'BANK NIFTY', exchange: 'NSE', value: 55844.00, change: 33.50, changePercent: 0.06, isLive: true },
-    { name: 'NIFTY IT', exchange: 'NSE', value: 31924.10, change: 1204.30, changePercent: 3.92, isLive: true },
-    { name: 'INDIA VIX', exchange: 'NSE', value: 14.03, change: -0.04, changePercent: -0.28, isLive: true },
-  ]);
+  }[]>([]);
 
   React.useEffect(() => {
     const loadBenchmarks = async () => {
@@ -137,7 +138,7 @@ export const Navbar: React.FC<Props> = ({
       <div className="hidden sm:flex items-center gap-6 overflow-x-auto py-1 px-4 text-[11px] font-mono border-b border-[#D96B43]/15 bg-[#131211] text-[#F7EEDB]/80 select-none scrollbar-none">
         <div className="flex items-center gap-1.5 font-bold text-[#22C55E] shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse"></span>
-          <span>OFFICIAL INDICES</span>
+          <span>MARKET DATA</span>
         </div>
         <div className="flex items-center gap-6 shrink-0">
           {benchmarks.map((idx) => {
@@ -159,9 +160,9 @@ export const Navbar: React.FC<Props> = ({
         <div className="ml-auto flex items-center gap-3 text-[#F7EEDB]/50 text-[10px] shrink-0">
           <span className="text-[#22C55E] font-medium flex items-center gap-1">
             <span className="w-1 h-1 rounded-full bg-[#22C55E]"></span>
-            NSE · BSE OFFICIAL FEED
+            THIRD-PARTY QUOTES
           </span>
-          <span className="text-[#D96B43] font-semibold">YAHOO &amp; GOOGLE FINANCE</span>
+          <span className="text-[#D96B43] font-semibold">YAHOO FINANCE DATA</span>
         </div>
       </div>
 
@@ -360,15 +361,25 @@ export const Navbar: React.FC<Props> = ({
             </button>
           )}
 
-          {/* Register / Sign In Button */}
-          {onOpenRegister && (
+          {/* Real Firebase account actions */}
+          {!isAuthenticated && onOpenRegister && (
             <button
               onClick={onOpenRegister}
               className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#D96B43] to-[#B85D3B] hover:brightness-110 active:scale-95 text-[#131211] font-bold text-xs shadow-md shadow-[#D96B43]/20 transition whitespace-nowrap shrink-0"
-              title="Register or Sign In"
+              title="Register or sign in with Firebase"
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span className="hidden lg:inline">Sign In</span>
+            </button>
+          )}
+          {isAuthenticated && onSignOut && (
+            <button
+              onClick={() => { void onSignOut(); }}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-[#D96B43]/35 bg-[#1A1816] text-[#F7EEDB] hover:bg-[#D96B43]/15 text-xs font-bold transition whitespace-nowrap shrink-0"
+              title="Sign out of the current Firebase account"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">Sign Out</span>
             </button>
           )}
 
@@ -441,7 +452,7 @@ export const Navbar: React.FC<Props> = ({
               ))}
             </div>
 
-            {onOpenRegister && (
+            {!isAuthenticated && onOpenRegister && (
               <button
                 onClick={() => {
                   onOpenRegister();
@@ -451,6 +462,18 @@ export const Navbar: React.FC<Props> = ({
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 <span>Register / Sign In</span>
+              </button>
+            )}
+            {isAuthenticated && onSignOut && (
+              <button
+                onClick={() => {
+                  void onSignOut();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D96B43]/30 bg-[#1A1816] text-[#F7EEDB] font-bold text-xs"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sign Out</span>
               </button>
             )}
           </div>

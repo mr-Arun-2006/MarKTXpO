@@ -69,6 +69,10 @@ export interface StockData {
   isLiveOfficial?: boolean;
   dataSource?: string;
   lastLiveSync?: string;
+  /** Provider-reported quote time; not the time this app fetched the response. */
+  quoteTimestamp?: string;
+  /** Provider market state such as REGULAR, PRE, POST, or CLOSED. */
+  marketState?: string;
   dayHigh?: number;
   dayLow?: number;
   hourlyChange?: number;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, SupportedLanguage } from '../types/market';
+import { getFirebaseAuthErrorMessage } from '../utils/firebaseAuthError';
 import { translations } from '../i18n/translations';
 import { PWAInstallButton } from '../components/PWAInstallButton';
 import {
@@ -112,6 +113,7 @@ export const ProfileSettingsView: React.FC<Props> = ({
   const [currentUser, setCurrentUser] = useState(getActiveUser());
   const [dbConnected, setDbConnected] = useState<boolean | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = subscribeToAuth((user) => {
@@ -127,12 +129,13 @@ export const ProfileSettingsView: React.FC<Props> = ({
 
   const handleGoogleSignIn = async () => {
     try {
+      setAuthError(null);
       setAuthLoading(true);
       const user = await signInWithGoogle();
       if (user.displayName) setName(user.displayName);
       if (user.email) setEmail(user.email);
-    } catch {
-      // Popup closed or cancelled by user; loading state is reset below
+    } catch (error: unknown) {
+      setAuthError(getFirebaseAuthErrorMessage(error, 'google'));
     } finally {
       setAuthLoading(false);
     }
@@ -140,11 +143,12 @@ export const ProfileSettingsView: React.FC<Props> = ({
 
   const handleGuestSignIn = async () => {
     try {
+      setAuthError(null);
       setAuthLoading(true);
       const user = await signInAsGuest();
       if (user.displayName) setName(user.displayName);
-    } catch {
-      // Handled by fallback guest session
+    } catch (error: unknown) {
+      setAuthError(getFirebaseAuthErrorMessage(error, 'guest'));
     } finally {
       setAuthLoading(false);
     }
@@ -253,6 +257,12 @@ export const ProfileSettingsView: React.FC<Props> = ({
               </div>
             </div>
           </div>
+
+          {authError && (
+            <p role="alert" className="mb-3 rounded-xl border border-red-500/30 bg-red-950/25 p-3 text-xs leading-5 text-red-200 whitespace-pre-line break-words">
+              {authError}
+            </p>
+          )}
 
           {/* Auth Action Buttons */}
           <div className="flex flex-wrap items-center gap-3 pt-2">

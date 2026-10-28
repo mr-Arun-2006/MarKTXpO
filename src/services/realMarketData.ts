@@ -429,12 +429,63 @@ async function fetchYahooQuote(symbol: string) {
         signal: AbortSignal.timeout(8_000),
       }
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // Try Yahoo's alternate chart host when the primary host is throttled or unavailable.
+      const fallbackUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+      const fallback = await fetch(fallbackUrl, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!fallback.ok) return null;
+      const payload: any = await fallback.json();
+      return normalizeYahooQuoteMetadata(payload?.chart?.result?.[0]);
+    }
+
     const json = await res.json();
-    return json?.chart?.result?.[0]?.meta || null;
-  } catch (err) {
+    return normalizeYahooQuoteMetadata(json?.chart?.result?.[0]);
+  } catch {
     return null;
   }
+}
+
+/**
+ * Yahoo's chart metadata does not always include regularMarketOpen, even when
+ * the chart includes a valid daily OHLC candle. Use only the latest observed
+ * candle's values to fill missing metadata fields; never estimate a price.
+ */
+function normalizeYahooQuoteMetadata(result: any): Record<string, any> | null {
+  const meta = result?.meta;
+  if (!meta || typeof meta !== 'object') return null;
+
+  const quotes = result?.indicators?.quote?.[0];
+  const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : [];
+  let latestIndex = -1;
+  for (let i = timestamps.length - 1; i >= 0; i -= 1) {
+    const candleValues = [quotes?.open?.[i], quotes?.high?.[i], quotes?.low?.[i], quotes?.close?.[i]];
+    if (candleValues.every((value: unknown) => typeof value === 'number' && Number.isFinite(value) && value > 0)) {
+      latestIndex = i;
+      break;
+    }
+  }
+
+  const candleField = (field: 'open' | 'high' | 'low' | 'close' | 'volume'): number | undefined => {
+    const value = latestIndex >= 0 ? quotes?.[field]?.[latestIndex] : undefined;
+    return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  };
+  const validMetaValue = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isFinite(value) && value > 0;
+
+  return {
+    ...meta,
+    regularMarketPrice: validMetaValue(meta.regularMarketPrice) ? meta.regularMarketPrice : candleField('close'),
+    regularMarketOpen: validMetaValue(meta.regularMarketOpen) ? meta.regularMarketOpen : candleField('open'),
+    regularMarketDayHigh: validMetaValue(meta.regularMarketDayHigh) ? meta.regularMarketDayHigh : candleField('high'),
+    regularMarketDayLow: validMetaValue(meta.regularMarketDayLow) ? meta.regularMarketDayLow : candleField('low'),
+    regularMarketVolume: validMetaValue(meta.regularMarketVolume) ? meta.regularMarketVolume : candleField('volume'),
+    regularMarketPreviousClose: validMetaValue(meta.regularMarketPreviousClose)
+      ? meta.regularMarketPreviousClose
+      : validMetaValue(meta.chartPreviousClose) ? meta.chartPreviousClose : meta.previousClose,
+  };
 }
 
 // Fetch benchmark index quotes from the third-party provider
@@ -566,7 +617,12 @@ export async function getRealIndianStockQuotes(): Promise<StockData[]> {
 
           const nsePrice = nseMeta?.regularMarketPrice;
           const bsePrice = bseMeta?.regularMarketPrice;
-          const prevClose = nseMeta?.chartPreviousClose;
+          const prevClose = nseMeta?.regularMarketPreviousClose ?? nseMeta?.chartPreviousClose ?? nseMeta?.previousClose;
+          const rawQuoteTime = nseMeta?.regularMarketTime;
+          const quoteTimestamp = Number.isFinite(rawQuoteTime) && rawQuoteTime > 0
+            ? new Date(rawQuoteTime * 1000).toISOString()
+            : undefined;
+          const marketState = typeof nseMeta?.marketState === 'string' ? nseMeta.marketState : undefined;
 
           if (
             !Number.isFinite(nsePrice) || (nsePrice as number) <= 0 ||
@@ -616,6 +672,8 @@ export async function getRealIndianStockQuotes(): Promise<StockData[]> {
             bsePrice: Math.round(validBsePrice * 100) / 100,
             currentPrice: Math.round(validNsePrice * 100) / 100,
             previousClose: Math.round(validPrevClose * 100) / 100,
+            quoteTimestamp,
+            marketState,
             change,
             changePercent,
             open: Math.round(dayOpen * 100) / 100,

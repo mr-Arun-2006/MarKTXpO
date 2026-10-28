@@ -115,15 +115,21 @@ export default defineConfig(() => {
                 },
               },
             },
+            // Current quotes must reach the server; never show cached prices as live.
+            {
+              urlPattern: /\/api\/market\/(?:stocks|benchmarks)(?:\?.*)?$/i,
+              handler: 'NetworkOnly',
+            },
+            // Historical candles may use a short offline cache; freshness is less time-sensitive.
             {
               urlPattern: /\/api\/market\/.*/i,
               handler: 'NetworkFirst',
               options: {
                 cacheName: 'market-api-cache',
-                networkTimeoutSeconds: 5,
+                networkTimeoutSeconds: 8,
                 expiration: {
                   maxEntries: 30,
-                  maxAgeSeconds: 60 * 60 * 24,
+                  maxAgeSeconds: 60 * 10,
                 },
                 cacheableResponse: {
                   statuses: [0, 200],

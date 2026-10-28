@@ -7,6 +7,7 @@ import {
   RegisterUserInput,
 } from '../services/firebase';
 import { SupportedLanguage } from '../types/market';
+import { getFirebaseAuthErrorMessage } from '../utils/firebaseAuthError';
 import {
   X,
   UserPlus,
@@ -96,25 +97,8 @@ export const RegisterUserModal: React.FC<Props> = ({
         if (onSuccess) onSuccess();
         onClose();
       }, 1000);
-    } catch (err: any) {
-      const code = String(err?.code || '').toLowerCase();
-      if (code === 'auth/email-already-in-use') {
-        setErrorMsg('An account with this email already exists. Try signing in instead.');
-      } else if (code === 'auth/operation-not-allowed') {
-        setErrorMsg('Email/password authentication is disabled. Enable the Email/Password provider in Firebase Console.');
-      } else if (code === 'auth/unauthorized-domain') {
-        setErrorMsg('This deployment domain is not authorized in Firebase. Add the hostname in Firebase Console → Authentication → Settings → Authorized domains.');
-      } else if (code === 'auth/weak-password') {
-        setErrorMsg('Choose a stronger password with at least 6 characters.');
-      } else if (code === 'auth/network-request-failed') {
-        setErrorMsg('Firebase could not be reached. Check your connection and try again.');
-      } else if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-        setErrorMsg('Incorrect email or password. Please verify and try again.');
-      } else if (code.includes('popup-closed-by-user') || code.includes('cancelled-popup-request')) {
-        setErrorMsg('Sign-in popup was closed before completion. Please try again.');
-      } else {
-        setErrorMsg(err instanceof Error ? err.message : 'Firebase authentication failed. Check the Firebase project configuration and try again.');
-      }
+    } catch (err: unknown) {
+      setErrorMsg(getFirebaseAuthErrorMessage(err, 'email'));
     } finally {
       setLoading(false);
     }
@@ -132,22 +116,13 @@ export const RegisterUserModal: React.FC<Props> = ({
         language,
         virtualCapital,
       });
-      setSuccessMsg('Authenticated with Google! Firestore & Cloud SQL profile synced with +100 XP.');
+      setSuccessMsg('Google sign-in successful. Your authenticated profile is ready.');
       setTimeout(() => {
         if (onSuccess) onSuccess();
         onClose();
       }, 900);
-    } catch (err: any) {
-      const code = String(err?.code || '').toLowerCase();
-      if (code.includes('auth/operation-not-allowed')) {
-        setErrorMsg('Google sign-in is disabled. Enable the Google provider in Firebase Console.');
-      } else if (code.includes('auth/unauthorized-domain')) {
-        setErrorMsg('Add this website hostname to Firebase Authentication → Authorized domains.');
-      } else if (code.includes('popup-closed-by-user') || code.includes('cancelled-popup-request')) {
-        setErrorMsg('Google sign-in window was closed. Click Google Account again when ready.');
-      } else {
-        setErrorMsg(err?.message || 'Google sign-in cancelled.');
-      }
+    } catch (err: unknown) {
+      setErrorMsg(getFirebaseAuthErrorMessage(err, 'google'));
     } finally {
       setLoading(false);
     }
@@ -158,13 +133,13 @@ export const RegisterUserModal: React.FC<Props> = ({
       setLoading(true);
       setErrorMsg(null);
       await signInAsGuest();
-      setSuccessMsg('Guest Sandbox session initiated with starter watchlists & ₹10L virtual capital.');
+      setSuccessMsg('Guest session started with a ₹10L virtual-capital profile.');
       setTimeout(() => {
         if (onSuccess) onSuccess();
         onClose();
       }, 900);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Guest login failed.');
+    } catch (err: unknown) {
+      setErrorMsg(getFirebaseAuthErrorMessage(err, 'guest'));
     } finally {
       setLoading(false);
     }
@@ -241,9 +216,9 @@ export const RegisterUserModal: React.FC<Props> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
           {errorMsg && (
-            <div className="p-3 rounded-xl bg-[#EF4444]/15 border border-[#EF4444]/40 text-[#EF4444] flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{errorMsg}</span>
+            <div role="alert" className="p-3 rounded-xl bg-[#EF4444]/15 border border-[#EF4444]/40 text-[#FCA5A5] flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="whitespace-pre-line break-words">{errorMsg}</span>
             </div>
           )}
 

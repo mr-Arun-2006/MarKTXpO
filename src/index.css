@@ -257,3 +257,24 @@ table, .tabular-nums, .font-mono {
 }
 
 
+
+
+/* Responsive layout safety net for phone, tablet, laptop, and wide desktop viewports. */
+:where(*, *::before, *::after) { box-sizing: border-box; }
+main, main > *, main section, main article, main aside { min-width: 0; }
+img, video, canvas { max-width: 100%; height: auto; }
+pre, code { overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  html, body, #root, main { width: 100%; max-width: 100%; min-width: 0; }
+  main > * { max-width: 100%; min-width: 0; }
+  .max-w-7xl, .max-w-6xl, .max-w-5xl, .max-w-4xl { width: 100%; max-width: 100%; }
+  [class~="grid-cols-3"], [class~="grid-cols-4"], [class~="grid-cols-5"], [class~="grid-cols-6"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  table { display: block; width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
+  th, td { white-space: nowrap; }
+  .fixed.inset-0.z-50 { overflow-y: auto; padding-top: max(0.75rem, env(safe-area-inset-top)); padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+  .overflow-x-auto { overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
+}
+@media (max-width: 380px) {
+  .max-w-7xl, .max-w-6xl, .max-w-5xl, .max-w-4xl { padding-left: 0.75rem; padding-right: 0.75rem; }
+}
+@media (hover: none) { button:not([disabled]):hover { box-shadow: none; } }

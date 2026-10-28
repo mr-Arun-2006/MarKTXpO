@@ -778,6 +778,12 @@ Use only the supplied technical values and the sources actually returned by grou
 
 // 6. Third-party Indian market data endpoints (Yahoo Finance quote/history metadata)
 app.get('/api/market/stocks', async (req, res) => {
+  // Quote responses must not be cached by browsers, CDNs, or installed PWAs.
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
+  });
   try {
     const quotes = await getRealIndianStockQuotes();
     return res.json({
@@ -795,6 +801,11 @@ app.get('/api/market/stocks', async (req, res) => {
 });
 
 app.get('/api/market/benchmarks', async (req, res) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
+  });
   try {
     const benchmarks = await getRealBenchmarks();
     return res.json({

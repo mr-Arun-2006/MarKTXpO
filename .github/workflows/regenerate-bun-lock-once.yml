@@ -1,0 +1,37 @@
+name: Regenerate Bun lockfile
+
+on:
+  push:
+    branches:
+      - fix/vercel-typescript-type-resolution
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    if: github.event.head_commit.message != 'chore: regenerate Bun lockfile'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Regenerate lockfile from package.json
+        run: bun install
+
+      - name: Commit updated lockfile
+        run: |
+          git add bun.lock
+          if git diff --cached --quiet; then
+            echo "Lockfile already matches package.json."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: regenerate Bun lockfile"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

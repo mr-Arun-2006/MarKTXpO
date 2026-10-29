@@ -292,7 +292,7 @@ export default function App() {
 
 
   const openAuthForView = (targetView = 'account', mode: 'register' | 'login' = 'register') => {
-    if (authReady && authenticatedUser) {
+    if ((authReady && authenticatedUser) || auth.currentUser) {
       setActiveView(targetView);
       return;
     }
@@ -311,7 +311,7 @@ export default function App() {
       setActiveView('auth');
       return;
     }
-    if (!authReady || !authenticatedUser) {
+    if ((!authReady || !authenticatedUser) && !auth.currentUser) {
       setPendingView(view);
       setAuthInitialMode('register');
       setActiveView('auth');
@@ -321,7 +321,7 @@ export default function App() {
   };
 
   const runAuthenticatedAction = (action: () => void, targetView = 'dashboard') => {
-    if (!authReady || !authenticatedUser) {
+    if ((!authReady || !authenticatedUser) && !auth.currentUser) {
       setPendingView(targetView);
       setAuthInitialMode('register');
       setActiveView('auth');

@@ -107,7 +107,7 @@ export const AccountHomeView: React.FC<Props> = ({
             <div className="my-5 border-t border-white/10" />
             <div className="flex items-center justify-between gap-3 text-sm">
               <span className="text-[#F7EEDB]/60">Preferred exchange</span>
-              <span className="font-semibold text-[#F7EEDB]">{profile.preferredExchange === 'BOTH' ? 'NSE + BSE' : profile.preferredExchange}</span>
+              <span className="font-semibold text-[#F7EEDB]">{(profile.preferredExchange as string) === 'BOTH' ? 'NSE + BSE' : profile.preferredExchange}</span>
             </div>
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
               <button

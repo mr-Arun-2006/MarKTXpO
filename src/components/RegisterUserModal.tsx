@@ -16,7 +16,6 @@ import {
   CheckCircle2,
   AlertCircle,
   TrendingUp,
-  Wallet,
 } from 'lucide-react';
 
 interface Props {

@@ -433,6 +433,7 @@ export default function App() {
               setAuthenticatedUser(signedInUser);
               setAuthReady(true);
               if (!signedInUser) return;
+              setPendingView((destination) => destination === 'account' ? null : destination);
               setActiveView('account');
               const dbP = await getDbUserProfile(signedInUser.uid);
               if (dbP) {

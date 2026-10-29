@@ -399,20 +399,22 @@ export const Navbar: React.FC<Props> = ({
           )}
 
           {/* Profile / Settings Button */}
-          <button
-            onClick={() => setActiveView('account')}
-            title="Open your account"
-            className={`hidden sm:flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border transition text-xs font-medium whitespace-nowrap shrink-0 ${
-              activeView === 'account'
-                ? 'bg-[#D96B43]/25 border-[#D96B43] text-[#FFFDF8]'
-                : 'border-[#D96B43]/35 bg-[#1A1816] text-[#F7EEDB] hover:border-[#D96B43] hover:text-[#FFFDF8]'
-            }`}
-          >
-            <div className="w-5 h-5 rounded-full bg-[#D96B43] flex items-center justify-center text-[10px] font-bold text-[#FFFDF8]">
-              {profile.name.charAt(0)}
-            </div>
-            <span className="hidden 2xl:inline font-medium text-[#F7EEDB]">{profile.name.split(' ')[0]}</span>
-          </button>
+          {isAuthenticated && (
+            <button
+              onClick={() => setActiveView('account')}
+              title="Open your account"
+              className={`hidden sm:flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border transition text-xs font-medium whitespace-nowrap shrink-0 ${
+                activeView === 'account'
+                  ? 'bg-[#D96B43]/25 border-[#D96B43] text-[#FFFDF8]'
+                  : 'border-[#D96B43]/35 bg-[#1A1816] text-[#F7EEDB] hover:border-[#D96B43] hover:text-[#FFFDF8]'
+              }`}
+            >
+              <div className="w-5 h-5 rounded-full bg-[#D96B43] flex items-center justify-center text-[10px] font-bold text-[#FFFDF8]">
+                {profile.name.charAt(0)}
+              </div>
+              <span className="hidden 2xl:inline font-medium text-[#F7EEDB]">{profile.name.split(' ')[0]}</span>
+            </button>
+          )}
 
           {/* Mobile & Tablet Menu Button */}
           <button

@@ -214,10 +214,10 @@ export default function App() {
   };
 
   const openAIExplanation = (stock: StockData) => {
-    if (!authReady || !authenticatedUser) {
+    if ((!authReady || !authenticatedUser) && !auth.currentUser) {
       setPendingView('dashboard');
-      setActiveView('landing');
-      setAuthModalOpen(true);
+      setAuthInitialMode('register');
+      setActiveView('auth');
       return;
     }
     setExplainingStock(stock);

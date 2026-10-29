@@ -8,6 +8,7 @@ import {
   signInWithPopup,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   updateProfile,
   User,
   Auth,
@@ -260,6 +261,15 @@ export async function loginWithEmail(email: string, pass: string): Promise<User>
   await syncUserToCloudSql(credential.user);
   notifyAuthListeners(credential.user);
   return credential.user;
+}
+
+// Send a password reset email through Firebase Auth without creating a local session.
+export async function requestPasswordReset(email: string): Promise<void> {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail || !normalizedEmail.includes('@')) {
+    throw new Error('Enter a valid email address first.');
+  }
+  await sendPasswordResetEmail(auth, normalizedEmail);
 }
 
 // Database Interfaces

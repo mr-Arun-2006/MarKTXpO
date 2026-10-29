@@ -26,6 +26,7 @@ import { auth, getDbUserProfile, saveDbTradeAlert, logOut } from './services/fir
 
 // Views
 import { LandingPage } from './views/LandingPage';
+import { AccountHomeView } from './views/AccountHomeView';
 import { DashboardView } from './views/DashboardView';
 import { CompareView } from './views/CompareView';
 import { ScreenerView } from './views/ScreenerView';
@@ -61,7 +62,7 @@ export default function App() {
   const [explainingStock, setExplainingStock] = useState<StockData | null>(null);
 
   // Auth modal state
-  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState<'register' | 'login'>('register');
   const [authReady, setAuthReady] = useState(false);
   const [authenticatedUser, setAuthenticatedUser] = useState<User | null>(auth.currentUser);
   const [pendingView, setPendingView] = useState<string | null>(null);
@@ -122,8 +123,7 @@ export default function App() {
         setChatbotOpen(false);
         setGmailOpen(false);
         setGoogleChatOpen(false);
-        setPendingView(null);
-        setActiveView('landing');
+        setActiveView((currentView) => currentView === 'auth' ? 'auth' : 'landing');
         return;
       }
 
@@ -291,13 +291,14 @@ export default function App() {
 
 
 
-  const openAuthForView = (targetView = 'dashboard') => {
+  const openAuthForView = (targetView = 'account', mode: 'register' | 'login' = 'register') => {
     if (authReady && authenticatedUser) {
       setActiveView(targetView);
       return;
     }
     setPendingView(targetView);
-    setAuthModalOpen(true);
+    setAuthInitialMode(mode);
+    setActiveView('auth');
   };
 
   const navigateToView = (view: string) => {
@@ -305,10 +306,15 @@ export default function App() {
       setActiveView('landing');
       return;
     }
+    if (view === 'auth') {
+      setAuthInitialMode('register');
+      setActiveView('auth');
+      return;
+    }
     if (!authReady || !authenticatedUser) {
       setPendingView(view);
-      setActiveView('landing');
-      setAuthModalOpen(true);
+      setAuthInitialMode('register');
+      setActiveView('auth');
       return;
     }
     setActiveView(view);
@@ -317,8 +323,8 @@ export default function App() {
   const runAuthenticatedAction = (action: () => void, targetView = 'dashboard') => {
     if (!authReady || !authenticatedUser) {
       setPendingView(targetView);
-      setActiveView('landing');
-      setAuthModalOpen(true);
+      setAuthInitialMode('register');
+      setActiveView('auth');
       return;
     }
     action();
@@ -350,20 +356,22 @@ export default function App() {
   return (
     <div className="min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden bg-[#131211] text-[#F7EEDB] flex flex-col font-sans selection:bg-[#D96B43]/30 selection:text-[#F7EEDB]">
       {/* Offline Toast Indicator */}
-      <OfflineIndicator />
+      {activeView !== 'auth' && <OfflineIndicator />}
 
       {/* Market data connection and provenance banner */}
-      <OfficialMarketBanner
-        isLiveOfficial={isLiveOfficial}
-        isUnavailable={isMarketDataUnavailable}
-        lastLiveSync={lastLiveSync}
-        onRefresh={handleRefreshRealData}
-        isRefreshing={isRefreshing}
-        stockCount={stocks.length}
-      />
+      {activeView !== 'auth' && (
+        <OfficialMarketBanner
+          isLiveOfficial={isLiveOfficial}
+          isUnavailable={isMarketDataUnavailable}
+          lastLiveSync={lastLiveSync}
+          onRefresh={handleRefreshRealData}
+          isRefreshing={isRefreshing}
+          stockCount={stocks.length}
+        />
+      )}
 
       {/* Main Top Navigation */}
-      <Navbar
+      {activeView !== 'auth' && <Navbar
         activeView={activeView}
         setActiveView={navigateToView}
         stocks={stocks}
@@ -377,17 +385,18 @@ export default function App() {
         profile={profile}
         unreadAlertsCount={unreadAlertsCount}
         openAIExplanation={openAIExplanation}
-        onOpenRegister={() => openAuthForView('dashboard')}
+        onOpenRegister={() => openAuthForView('account', 'register')}
+        onOpenLogin={() => openAuthForView('account', 'login')}
         onOpenChatbot={() => runAuthenticatedAction(() => setChatbotOpen(true))}
         onOpenGoogleChat={() => runAuthenticatedAction(() => handleOpenGoogleChat())}
         onOpenGmail={() => runAuthenticatedAction(() => setGmailOpen(true))}
         isAuthenticated={Boolean(authReady && authenticatedUser)}
         onSignOut={handleSignOut}
-      />
+      />}
 
       {/* Active View Router */}
-      <main className="flex-1 w-full pb-24 lg:pb-10">
-        {activeView !== 'landing' && activeView !== 'profile' && activeView !== 'eod' && (stocks.length === 0 || isMarketDataUnavailable) ? (
+      <main className={activeView === 'auth' ? 'flex-1 w-full' : 'flex-1 w-full pb-24 lg:pb-10'}>
+        {activeView !== 'landing' && activeView !== 'profile' && activeView !== 'eod' && activeView !== 'account' && activeView !== 'auth' && (stocks.length === 0 || isMarketDataUnavailable) ? (
           <section className="mx-auto flex min-h-[55vh] max-w-3xl flex-col items-center justify-center gap-4 px-5 py-12 text-center">
             <div className="rounded-2xl border border-[#D96B43]/25 bg-[#1A1816] p-6 shadow-xl">
               <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#D96B43]">Market data unavailable</div>
@@ -409,6 +418,36 @@ export default function App() {
           </section>
         ) : (
           <>
+        {activeView === 'auth' && (
+          <RegisterUserModal
+            isOpen={true}
+            fullPage
+            initialMode={authInitialMode}
+            language={language}
+            onClose={() => {
+              setPendingView(null);
+              setActiveView('landing');
+            }}
+            onSuccess={async () => {
+              const signedInUser = auth.currentUser;
+              setAuthenticatedUser(signedInUser);
+              setAuthReady(true);
+              if (!signedInUser) return;
+              setActiveView('account');
+              const dbP = await getDbUserProfile(signedInUser.uid);
+              if (dbP) {
+                setProfile((prev) => ({
+                  ...prev,
+                  name: dbP.displayName || signedInUser.displayName || prev.name,
+                  email: dbP.email || signedInUser.email || prev.email,
+                  preferredExchange: (dbP.preferredExchange as any) || prev.preferredExchange,
+                  customApiKey: '',
+                }));
+              }
+            }}
+          />
+        )}
+
         {activeView === 'landing' && (
           <LandingPage
             onLaunchDashboard={() => navigateToView('dashboard')}
@@ -419,9 +458,22 @@ export default function App() {
               openAIExplanation(st);
             }, 'dashboard')}
             onPlayGame={() => navigateToView('game')}
-            onRegister={() => openAuthForView('dashboard')}
+            onRegister={() => openAuthForView('account', 'register')}
             featuredStocks={stocks}
             language={language}
+          />
+        )}
+
+        {activeView === 'account' && (
+          <AccountHomeView
+            profile={profile}
+            isGuest={Boolean(authenticatedUser?.isAnonymous)}
+            pendingDestination={pendingView}
+            onNavigate={(view) => {
+              setPendingView(null);
+              navigateToView(view);
+            }}
+            onSignOut={handleSignOut}
           />
         )}
 
@@ -567,13 +619,15 @@ export default function App() {
       </main>
  
       {/* Mobile Bottom Quick Navigation & PWA Action Bar */}
-      <MobileBottomNav
-        activeView={activeView}
-        setActiveView={navigateToView}
-        unreadAlertsCount={unreadAlertsCount}
-        onOpenGmail={() => setGmailOpen(true)}
-        onOpenGoogleChat={() => handleOpenGoogleChat()}
-      />
+      {authReady && authenticatedUser && activeView !== 'landing' && activeView !== 'auth' && (
+        <MobileBottomNav
+          activeView={activeView}
+          setActiveView={navigateToView}
+          unreadAlertsCount={unreadAlertsCount}
+          onOpenGmail={() => setGmailOpen(true)}
+          onOpenGoogleChat={() => handleOpenGoogleChat()}
+        />
+      )}
 
       {/* AI Deep Explanation Modal */}
       {explainingStock && (
@@ -585,37 +639,15 @@ export default function App() {
         />
       )}
 
-      {/* Register New User & Cloud DB Auth Modal */}
-      <RegisterUserModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        language={language}
-        onSuccess={async () => {
-          const signedInUser = auth.currentUser;
-          setAuthenticatedUser(signedInUser);
-          if (signedInUser) {
-            const requestedView = pendingView || 'dashboard';
-            setPendingView(null);
-            setActiveView(requestedView);
-            const dbP = await getDbUserProfile(signedInUser.uid);
-            if (dbP) {
-              setProfile((prev) => ({
-                ...prev,
-                name: dbP.displayName || prev.name,
-                email: dbP.email || prev.email,
-                preferredExchange: (dbP.preferredExchange as any) || prev.preferredExchange,
-                customApiKey: '',
-              }));
-            }
-          }
-        }}
-      />
+
 
       {/* Floating Chatbot Trigger Button */}
-      <ChatbotTrigger
-        onClick={() => setChatbotOpen(true)}
-        isOpen={chatbotOpen}
-      />
+      {authenticatedUser && activeView !== 'auth' && (
+        <ChatbotTrigger
+          onClick={() => setChatbotOpen(true)}
+          isOpen={chatbotOpen}
+        />
+      )}
 
       {/* Multi-turn Gemini AI Chatbot Drawer / Modal */}
       <GeminiChatbot

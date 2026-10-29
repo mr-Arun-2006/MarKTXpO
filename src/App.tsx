@@ -459,6 +459,8 @@ export default function App() {
             }, 'dashboard')}
             onPlayGame={() => navigateToView('game')}
             onRegister={() => openAuthForView('account', 'register')}
+            onSignIn={() => openAuthForView('account', 'login')}
+            isAuthenticated={Boolean(authReady && authenticatedUser)}
             featuredStocks={stocks}
             language={language}
           />

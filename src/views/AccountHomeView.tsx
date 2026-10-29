@@ -15,6 +15,7 @@ import type { UserProfile } from '../types/market';
 interface Props {
   profile: UserProfile;
   isGuest: boolean;
+  pendingDestination?: string | null;
   onNavigate: (view: string) => void;
   onSignOut: () => void | Promise<void>;
 }
@@ -22,10 +23,20 @@ interface Props {
 export const AccountHomeView: React.FC<Props> = ({
   profile,
   isGuest,
+  pendingDestination,
   onNavigate,
   onSignOut,
 }) => {
   const firstName = profile.name?.trim().split(/\s+/)[0] || 'there';
+  const nextView = pendingDestination && !['account', 'auth', 'landing'].includes(pendingDestination) ? pendingDestination : 'dashboard';
+  const destinationLabels: Record<string, string> = {
+    dashboard: 'market terminal', watchlist: 'watchlist', portfolio: 'portfolio', alerts: 'alerts',
+    eod: 'end-of-day analysis', compare: 'stock comparison', screener: 'stock screener',
+    strategy: 'strategy builder', backtest: 'backtesting', sectors: 'sector analysis', history: 'market history', game: 'trading academy',
+  };
+  const primaryActionLabel = pendingDestination && destinationLabels[nextView]
+    ? `Continue to ${destinationLabels[nextView]}`
+    : 'Open market terminal';
 
   const shortcuts = [
     {
@@ -69,7 +80,7 @@ export const AccountHomeView: React.FC<Props> = ({
           </div>
           <button
             type="button"
-            onClick={() => onNavigate('dashboard')}
+            onClick={() => onNavigate(nextView)}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#D96B43] px-5 py-3 text-sm font-bold text-[#131211] transition hover:brightness-110"
           >
             <BarChart3 className="h-4 w-4" />

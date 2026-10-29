@@ -136,10 +136,10 @@ export const RegisterUserModal: React.FC<Props> = ({
       setErrorMsg(null);
       await signInAsGuest();
       setSuccessMsg('Guest access is ready. Opening your account…');
-      setTimeout(() => {
-        if (onSuccess) onSuccess();
-        onClose();
-      }, 900);
+      window.setTimeout(() => {
+        if (onSuccess) void onSuccess();
+        else onClose();
+      }, 500);
     } catch (err: unknown) {
       setErrorMsg(getFirebaseAuthErrorMessage(err, 'guest'));
     } finally {
@@ -204,7 +204,9 @@ export const RegisterUserModal: React.FC<Props> = ({
           </div>
 
           <button
+            type="button"
             onClick={onClose}
+            aria-label={fullPage ? 'Back to home' : 'Close sign in'}
             className="p-1.5 rounded-lg text-[#F7EEDB]/60 hover:text-[#F7EEDB] hover:bg-[#25221F] transition"
           >
             <X className="w-5 h-5" />

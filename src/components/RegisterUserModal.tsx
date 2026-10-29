@@ -13,8 +13,6 @@ import {
   UserPlus,
   LogIn,
   Sparkles,
-  ShieldCheck,
-  Database,
   CheckCircle2,
   AlertCircle,
   TrendingUp,
@@ -25,16 +23,20 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   language: SupportedLanguage;
-  onSuccess?: () => void;
+  initialMode?: 'register' | 'login';
+  fullPage?: boolean;
+  onSuccess?: () => void | Promise<void>;
 }
 
 export const RegisterUserModal: React.FC<Props> = ({
   isOpen,
   onClose,
   language,
+  initialMode = 'register',
+  fullPage = false,
   onSuccess,
 }) => {
-  const [mode, setMode] = useState<'register' | 'login'>('register');
+  const [mode, setMode] = useState<'register' | 'login'>(initialMode);
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -56,7 +58,7 @@ export const RegisterUserModal: React.FC<Props> = ({
     try {
       if (mode === 'register') {
         if (!displayName.trim()) {
-          setErrorMsg('Please enter your full name or trader handle.');
+          setErrorMsg('Please enter your name.');
           setLoading(false);
           return;
         }
@@ -82,7 +84,7 @@ export const RegisterUserModal: React.FC<Props> = ({
         };
 
         await registerNewUser(input);
-        setSuccessMsg('Account registered! Your trader profile and personal game-progress record are ready.');
+        setSuccessMsg('Account created. Opening your account…');
       } else {
         if (!email || !password) {
           setErrorMsg('Please enter both email and password.');
@@ -90,13 +92,13 @@ export const RegisterUserModal: React.FC<Props> = ({
           return;
         }
         await loginWithEmail(email.trim(), password);
-        setSuccessMsg('Signed in successfully! Trader profile & watchlists synced.');
+        setSuccessMsg('Signed in successfully. Opening your account…');
       }
 
-      setTimeout(() => {
-        if (onSuccess) onSuccess();
-        onClose();
-      }, 1000);
+      window.setTimeout(() => {
+        if (onSuccess) void onSuccess();
+        else onClose();
+      }, 500);
     } catch (err: unknown) {
       setErrorMsg(getFirebaseAuthErrorMessage(err, 'email'));
     } finally {
@@ -116,11 +118,11 @@ export const RegisterUserModal: React.FC<Props> = ({
         language,
         virtualCapital,
       });
-      setSuccessMsg('Google sign-in successful. Your authenticated profile is ready.');
-      setTimeout(() => {
-        if (onSuccess) onSuccess();
-        onClose();
-      }, 900);
+      setSuccessMsg('Google sign-in successful. Opening your account…');
+      window.setTimeout(() => {
+        if (onSuccess) void onSuccess();
+        else onClose();
+      }, 500);
     } catch (err: unknown) {
       setErrorMsg(getFirebaseAuthErrorMessage(err, 'google'));
     } finally {
@@ -133,7 +135,7 @@ export const RegisterUserModal: React.FC<Props> = ({
       setLoading(true);
       setErrorMsg(null);
       await signInAsGuest();
-      setSuccessMsg('Guest session started with a ₹10L virtual-capital profile.');
+      setSuccessMsg('Guest access is ready. Opening your account…');
       setTimeout(() => {
         if (onSuccess) onSuccess();
         onClose();
@@ -146,8 +148,22 @@ export const RegisterUserModal: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg rounded-2xl bg-[#1A1816] border border-[#D96B43]/30 shadow-2xl overflow-hidden text-[#F7EEDB]">
+    <div className={fullPage
+      ? 'min-h-[100dvh] w-full flex items-center justify-center bg-[#131211] px-4 py-6 sm:px-8 sm:py-10'
+      : 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200'}>
+      <div className={`relative w-full ${fullPage ? 'max-w-md' : 'max-w-lg'} max-h-[calc(100dvh-2rem)] rounded-2xl bg-[#1A1816] border border-[#D96B43]/30 shadow-2xl overflow-hidden text-[#F7EEDB]`}>
+        {fullPage && (
+          <div className="flex items-center gap-2.5 px-5 pt-5 pb-1">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#D96B43]/15 text-[#D96B43]">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-bold tracking-wide text-[#F7EEDB]">MarKTXpO</p>
+              <p className="text-xs text-[#F7EEDB]/55">Indian market intelligence</p>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="p-5 border-b border-[#D96B43]/20 flex items-center justify-between bg-[#131211]">
           <div className="flex items-center gap-2.5">
@@ -157,16 +173,13 @@ export const RegisterUserModal: React.FC<Props> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-[#F7EEDB]">
-                  {mode === 'register' ? 'Register New Trader Account' : 'Trader Account Sign In'}
+                  {mode === 'register' ? 'Create your account' : 'Welcome back'}
                 </h3>
-                <span className="text-[10px] px-2 py-0.5 rounded font-mono font-semibold bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/30 flex items-center gap-1">
-                  <Database className="w-2.5 h-2.5" /> Firestore Cloud DB
-                </span>
               </div>
-              <p className="text-[11px] text-[#F7EEDB]/60">
+              <p className="mt-1 text-xs leading-5 text-[#F7EEDB]/60">
                 {mode === 'register'
-                  ? 'Create your persistent cloud profile, watchlist, and trading progress'
-                  : 'Access your cloud portfolio, custom watchlists, and streak records'}
+                  ? 'Save your workspace and return to it anytime.'
+                  : 'Sign in to return to your saved workspace.'}
               </p>
             </div>
           </div>
@@ -209,12 +222,12 @@ export const RegisterUserModal: React.FC<Props> = ({
             }`}
           >
             <LogIn className="w-4 h-4" />
-            <span>Existing Sign In</span>
+            <span>Sign in</span>
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
+        <form onSubmit={handleSubmit} className={`p-5 space-y-4 ${fullPage ? 'max-h-[calc(100dvh-17rem)]' : 'max-h-[75vh]'} overflow-y-auto text-sm`}>
           {errorMsg && (
             <div role="alert" className="p-3 rounded-xl bg-[#EF4444]/15 border border-[#EF4444]/40 text-[#FCA5A5] flex items-start gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -223,7 +236,7 @@ export const RegisterUserModal: React.FC<Props> = ({
           )}
 
           {successMsg && (
-            <div className="p-3 rounded-xl bg-[#22C55E]/15 border border-[#22C55E]/40 text-[#22C55E] flex items-center gap-2">
+            <div role="status" aria-live="polite" className="p-3 rounded-xl bg-[#22C55E]/15 border border-[#22C55E]/40 text-[#22C55E] flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>{successMsg}</span>
             </div>
@@ -231,114 +244,107 @@ export const RegisterUserModal: React.FC<Props> = ({
 
           {mode === 'register' && (
             <div>
-              <label className="block text-[#F7EEDB]/80 font-semibold mb-1">
-                Full Name / Trader Handle *
+              <label htmlFor="auth-display-name" className="block text-[#F7EEDB]/80 font-semibold mb-1">
+                Full name *
               </label>
               <input
+                id="auth-display-name"
+                name="name"
+                autoComplete="name"
                 type="text"
                 required
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="e.g. Sasi Kumar or DalalStreet_Sniper"
+                placeholder="Enter your name"
                 className="w-full px-3 py-2 rounded-xl bg-[#131211] border border-[#D96B43]/20 text-[#F7EEDB] font-medium focus:outline-none focus:border-[#D96B43]"
               />
             </div>
           )}
 
           <div>
-            <label className="block text-[#F7EEDB]/80 font-semibold mb-1">
-              Email Address *
+            <label htmlFor="auth-email" className="block text-[#F7EEDB]/80 font-semibold mb-1">
+              Email address *
             </label>
             <input
+              id="auth-email"
+              name="email"
+              autoComplete="email"
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@example.com"
+              placeholder="you@example.com"
               className="w-full px-3 py-2 rounded-xl bg-[#131211] border border-[#D96B43]/20 text-[#F7EEDB] font-mono focus:outline-none focus:border-[#D96B43]"
             />
           </div>
 
           <div>
-            <label className="block text-[#F7EEDB]/80 font-semibold mb-1">
-              Password {mode === 'register' ? '(minimum 6 characters) *' : '*'}
+            <label htmlFor="auth-password" className="block text-[#F7EEDB]/80 font-semibold mb-1">
+              Password {mode === 'register' ? '(at least 6 characters) *' : '*'}
             </label>
             <input
+              id="auth-password"
+              name="password"
+              autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
               type="password"
+              minLength={mode === 'register' ? 6 : undefined}
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder="Enter your password"
               className="w-full px-3 py-2 rounded-xl bg-[#131211] border border-[#D96B43]/20 text-[#F7EEDB] font-mono focus:outline-none focus:border-[#D96B43]"
             />
           </div>
 
           {mode === 'register' && (
-            <>
-              <div className="grid grid-cols-2 gap-3">
+            <details className="rounded-xl border border-white/10 bg-[#131211]/60 p-3">
+              <summary className="cursor-pointer list-inside text-sm font-semibold text-[#F7EEDB]/80">
+                Personalise your workspace <span className="font-normal text-[#F7EEDB]/45">(optional)</span>
+              </summary>
+              <div className="mt-4 space-y-4">
                 <div>
-                  <label className="block text-[#F7EEDB]/80 font-semibold mb-1">
-                    Preferred Exchange
-                  </label>
+                  <label htmlFor="auth-exchange" className="mb-1 block text-sm font-medium text-[#F7EEDB]/75">Preferred exchange</label>
                   <select
+                    id="auth-exchange"
                     value={preferredExchange}
-                    onChange={(e) => setPreferredExchange(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#131211] border border-[#D96B43]/20 text-[#F7EEDB] focus:outline-none focus:border-[#D96B43]"
+                    onChange={(e) => setPreferredExchange(e.target.value as 'NSE' | 'BSE' | 'BOTH')}
+                    className="w-full rounded-xl border border-[#D96B43]/20 bg-[#131211] px-3 py-2.5 text-[#F7EEDB]"
                   >
-                    <option value="BOTH">Dual NSE &amp; BSE (Recommended)</option>
-                    <option value="NSE">NSE Only (National Stock Exchange)</option>
-                    <option value="BSE">BSE Only (Bombay Stock Exchange)</option>
+                    <option value="BOTH">NSE and BSE</option>
+                    <option value="NSE">NSE only</option>
+                    <option value="BSE">BSE only</option>
                   </select>
                 </div>
-
                 <div>
-                  <label className="block text-[#F7EEDB]/80 font-semibold mb-1">
-                    Trader Profile Type
-                  </label>
+                  <label htmlFor="auth-experience" className="mb-1 block text-sm font-medium text-[#F7EEDB]/75">Experience level</label>
                   <select
+                    id="auth-experience"
                     value={experienceLevel}
                     onChange={(e) => setExperienceLevel(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#131211] border border-[#D96B43]/20 text-[#F7EEDB] focus:outline-none focus:border-[#D96B43]"
+                    className="w-full rounded-xl border border-[#D96B43]/20 bg-[#131211] px-3 py-2.5 text-[#F7EEDB]"
                   >
-                    <option value="Beginner Student">Student / Academy Learner</option>
-                    <option value="Active Swing Trader">Active Swing Trader</option>
-                    <option value="Long-Term Investor">Long-Term Value Investor</option>
-                    <option value="Arbitrage Specialist">Arbitrage Specialist</option>
+                    <option value="Beginner Student">Beginner</option>
+                    <option value="Active Swing Trader">Active trader</option>
+                    <option value="Long-Term Investor">Long-term investor</option>
+                    <option value="Arbitrage Specialist">Arbitrage specialist</option>
                   </select>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-[#F7EEDB]/80 font-semibold mb-1">
-                  Starting Virtual Paper Capital
-                </label>
-                <div className="flex items-center gap-2">
+                <div>
+                  <label htmlFor="auth-virtual-capital" className="mb-1 block text-sm font-medium text-[#F7EEDB]/75">Starting practice balance (₹)</label>
                   <input
+                    id="auth-virtual-capital"
                     type="number"
                     min="100000"
                     max="10000000"
                     step="50000"
                     value={virtualCapital}
                     onChange={(e) => setVirtualCapital(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-[#131211] border border-[#D96B43]/20 text-[#F7EEDB] font-mono focus:outline-none focus:border-[#D96B43]"
+                    className="w-full rounded-xl border border-[#D96B43]/20 bg-[#131211] px-3 py-2.5 font-mono text-[#F7EEDB]"
                   />
-                  <span className="text-[11px] font-mono text-[#22C55E] px-2 py-1 rounded bg-[#22C55E]/15 border border-[#22C55E]/30 whitespace-nowrap">
-                    ₹{(virtualCapital / 100000).toFixed(1)} Lakhs
-                  </span>
                 </div>
+                <p className="text-xs leading-5 text-[#F7EEDB]/45">You can change these preferences later in account settings.</p>
               </div>
-
-              {/* Starter Perks Banner */}
-              <div className="p-3 rounded-xl bg-[#D96B43]/10 border border-[#D96B43]/30 space-y-1">
-                <div className="flex items-center gap-1.5 font-bold text-[#D96B43]">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Automatic Starter Package Included</span>
-                </div>
-                <p className="text-[11px] text-[#F7EEDB]/70">
-                  New registered profiles receive a personal trader profile and game-progress record. The watchlist starts empty so only stocks you add are saved.
-                </p>
-              </div>
-            </>
+            </details>
           )}
 
           {/* Submit Button */}
@@ -352,12 +358,12 @@ export const RegisterUserModal: React.FC<Props> = ({
             ) : mode === 'register' ? (
               <>
                 <UserPlus className="w-4 h-4" />
-                <span>Complete Registration &amp; Provision Cloud DB</span>
+                <span>Create account</span>
               </>
             ) : (
               <>
                 <LogIn className="w-4 h-4" />
-                <span>Sign In to Account</span>
+                <span>Sign in</span>
               </>
             )}
           </button>
@@ -365,7 +371,7 @@ export const RegisterUserModal: React.FC<Props> = ({
           {/* Alternative Quick Sign-In Options */}
           <div className="pt-3 border-t border-[#D96B43]/15 space-y-2">
             <span className="text-[10px] text-[#F7EEDB]/50 block text-center uppercase tracking-wider font-mono">
-              Or Authenticate With
+              Or continue with
             </span>
 
             <div className="grid grid-cols-2 gap-2">
@@ -376,7 +382,7 @@ export const RegisterUserModal: React.FC<Props> = ({
                 className="py-2 px-3 rounded-xl bg-[#131211] hover:bg-[#25221F] border border-[#D96B43]/25 font-semibold text-[11px] text-[#F7EEDB] flex items-center justify-center gap-1.5 transition"
               >
                 <span className="font-bold text-[#8CB4E0]">G</span>
-                <span>Google Account</span>
+                <span>Continue with Google</span>
               </button>
 
               <button
@@ -386,7 +392,7 @@ export const RegisterUserModal: React.FC<Props> = ({
                 className="py-2 px-3 rounded-xl bg-[#131211] hover:bg-[#25221F] border border-[#D96B43]/25 font-semibold text-[11px] text-[#F7EEDB]/80 flex items-center justify-center gap-1.5 transition"
               >
                 <Sparkles className="w-3.5 h-3.5 text-[#F59E0B]" />
-                <span>Guest Sandbox</span>
+                <span>Try as guest</span>
               </button>
             </div>
           </div>

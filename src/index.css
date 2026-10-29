@@ -278,3 +278,100 @@ pre, code { overflow-wrap: anywhere; }
   .max-w-7xl, .max-w-6xl, .max-w-5xl, .max-w-4xl { padding-left: 0.75rem; padding-right: 0.75rem; }
 }
 @media (hover: none) { button:not([disabled]):hover { box-shadow: none; } }
+
+
+/* MarKTXpO responsive UI refinement: keyboard access, touch comfort and fluid data layouts. */
+:root {
+  color-scheme: dark;
+  --mx-surface: #1a1816;
+  --mx-border: rgba(217, 107, 67, 0.24);
+  --mx-focus: #f3a17f;
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--mx-focus) !important;
+  outline-offset: 3px;
+}
+
+::selection {
+  background: rgba(217, 107, 67, 0.34);
+  color: #fffaf2;
+}
+
+/* Avoid content pushing the viewport wider than the device. */
+#root, header, main, main > *, section, article, aside {
+  min-width: 0;
+}
+
+svg, canvas, video, img {
+  max-inline-size: 100%;
+}
+
+button, [role="button"], a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 767px) {
+  button, [role="button"], select {
+    min-height: 42px;
+  }
+
+  /* Keep dense market data readable without forcing the entire page to scroll sideways. */
+  table {
+    display: block;
+    max-inline-size: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  th, td {
+    white-space: nowrap;
+  }
+
+  input, select, textarea {
+    max-inline-size: 100%;
+  }
+
+  .overflow-x-auto {
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  /* Dashboard charts should stay inside their cards on narrow screens. */
+  .recharts-responsive-container {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .fixed.inset-0 {
+    overscroll-behavior: contain;
+  }
+}
+
+@media (max-width: 420px) {
+  .text-2xl { overflow-wrap: anywhere; }
+  [class~="grid-cols-2"],
+  [class~="grid-cols-3"],
+  [class~="grid-cols-4"],
+  [class~="grid-cols-5"],
+  [class~="grid-cols-6"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .px-4, .sm\:px-4 {
+    padding-inline: 0.875rem;
+  }
+}
+
+/* Preserve animation for users who want it, but respect system motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

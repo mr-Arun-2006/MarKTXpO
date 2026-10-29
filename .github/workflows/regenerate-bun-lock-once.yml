@@ -1,3 +1,4 @@
+# Temporary one-time lockfile sync helper; remove after its generated lockfile commit.
 name: Regenerate Bun lockfile
 
 on:

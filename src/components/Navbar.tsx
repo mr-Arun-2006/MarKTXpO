@@ -28,6 +28,7 @@ import {
   Mail,
   Activity,
   LogOut,
+  LogIn,
 } from 'lucide-react';
 
 interface Props {
@@ -42,6 +43,7 @@ interface Props {
   unreadAlertsCount: number;
   openAIExplanation: (stock: StockData) => void;
   onOpenRegister?: () => void;
+  onOpenLogin?: () => void;
   onOpenChatbot?: () => void;
   onOpenGoogleChat?: () => void;
   onOpenGmail?: () => void;
@@ -61,6 +63,7 @@ export const Navbar: React.FC<Props> = ({
   unreadAlertsCount,
   openAIExplanation,
   onOpenRegister,
+  onOpenLogin,
   onOpenChatbot,
   onOpenGoogleChat,
   onOpenGmail,
@@ -82,7 +85,7 @@ export const Navbar: React.FC<Props> = ({
       s.sector.toLowerCase().includes(searchQuery.toLowerCase())
   ).slice(0, 6);
 
-  const navItems = [
+  const allNavItems = [
     { id: 'landing', label: t.landing, icon: Home },
     { id: 'dashboard', label: t.dashboard, icon: BarChart3 },
     { id: 'eod', label: 'EOD Analysis', icon: Activity },
@@ -95,7 +98,9 @@ export const Navbar: React.FC<Props> = ({
     { id: 'sectors', label: t.sectors, icon: Layers },
     { id: 'portfolio', label: t.portfolio, icon: Briefcase },
     { id: 'history', label: t.history, icon: History },
+    { id: 'account', label: 'Account', icon: UserPlus },
   ];
+  const navItems = isAuthenticated ? allNavItems : allNavItems.filter((item) => item.id === 'landing');
 
   const languages: { code: SupportedLanguage; label: string }[] = [
     { code: 'en', label: 'English' },
@@ -361,15 +366,25 @@ export const Navbar: React.FC<Props> = ({
             </button>
           )}
 
-          {/* Real Firebase account actions */}
+          {/* Clear sign-in choices for new and returning users */}
           {!isAuthenticated && onOpenRegister && (
             <button
               onClick={onOpenRegister}
               className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#D96B43] to-[#B85D3B] hover:brightness-110 active:scale-95 text-[#131211] font-bold text-xs shadow-md shadow-[#D96B43]/20 transition whitespace-nowrap shrink-0"
-              title="Register or sign in with Firebase"
+              title="Create your MarKTXpO account"
             >
               <UserPlus className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">Sign In</span>
+              <span className="hidden lg:inline">Create account</span>
+            </button>
+          )}
+          {!isAuthenticated && onOpenLogin && (
+            <button
+              onClick={onOpenLogin}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-[#D96B43]/35 bg-[#1A1816] text-[#F7EEDB] hover:bg-[#D96B43]/10 text-xs font-bold transition whitespace-nowrap shrink-0"
+              title="Sign in to your account"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">Sign in</span>
             </button>
           )}
           {isAuthenticated && onSignOut && (
@@ -385,9 +400,10 @@ export const Navbar: React.FC<Props> = ({
 
           {/* Profile / Settings Button */}
           <button
-            onClick={() => setActiveView('profile')}
+            onClick={() => setActiveView('account')}
+            title="Open your account"
             className={`hidden sm:flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border transition text-xs font-medium whitespace-nowrap shrink-0 ${
-              activeView === 'profile'
+              activeView === 'account'
                 ? 'bg-[#D96B43]/25 border-[#D96B43] text-[#FFFDF8]'
                 : 'border-[#D96B43]/35 bg-[#1A1816] text-[#F7EEDB] hover:border-[#D96B43] hover:text-[#FFFDF8]'
             }`}
@@ -452,16 +468,44 @@ export const Navbar: React.FC<Props> = ({
               ))}
             </div>
 
-            {!isAuthenticated && onOpenRegister && (
+            {!isAuthenticated && (
+              <div className="grid w-full grid-cols-2 gap-2">
+                {onOpenRegister && (
+                  <button
+                    onClick={() => {
+                      onOpenRegister();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#D96B43] to-[#B85D3B] px-3 py-2 text-xs font-bold text-[#131211]"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                    <span>Create account</span>
+                  </button>
+                )}
+                {onOpenLogin && (
+                  <button
+                    onClick={() => {
+                      onOpenLogin();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-[#D96B43]/30 bg-[#1A1816] px-3 py-2 text-xs font-bold text-[#F7EEDB]"
+                  >
+                    <LogIn className="h-3.5 w-3.5" />
+                    <span>Sign in</span>
+                  </button>
+                )}
+              </div>
+            )}
+            {isAuthenticated && (
               <button
                 onClick={() => {
-                  onOpenRegister();
+                  setActiveView('account');
                   setMobileMenuOpen(false);
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#D96B43] to-[#B85D3B] text-[#131211] font-bold text-xs"
+                className="flex min-h-10 items-center gap-2 rounded-xl border border-[#D96B43]/30 bg-[#1A1816] px-3 py-2 text-xs font-bold text-[#F7EEDB]"
               >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>Register / Sign In</span>
+                <UserPlus className="h-3.5 w-3.5 text-[#D96B43]" />
+                <span>My account</span>
               </button>
             )}
             {isAuthenticated && onSignOut && (

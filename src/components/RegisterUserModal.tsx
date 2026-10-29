@@ -4,6 +4,7 @@ import {
   loginWithEmail,
   signInWithGoogle,
   signInAsGuest,
+  requestPasswordReset,
   RegisterUserInput,
 } from '../services/firebase';
 import { SupportedLanguage } from '../types/market';
@@ -145,6 +146,25 @@ export const RegisterUserModal: React.FC<Props> = ({
       setLoading(false);
     }
   };
+
+  const handlePasswordReset = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    if (!email.trim() || !email.includes('@')) {
+      setErrorMsg('Enter your email address above, then select “Forgot password?”.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await requestPasswordReset(email);
+      setSuccessMsg('If an account uses this email, password reset instructions have been sent.');
+    } catch {
+      setErrorMsg('We could not send the reset email. Check the address and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   return (
     <div className={fullPage
@@ -294,6 +314,19 @@ export const RegisterUserModal: React.FC<Props> = ({
               className="w-full px-3 py-2 rounded-xl bg-[#131211] border border-[#D96B43]/20 text-[#F7EEDB] font-mono focus:outline-none focus:border-[#D96B43]"
             />
           </div>
+
+          {mode === 'login' && (
+            <div className="-mt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => { void handlePasswordReset(); }}
+                disabled={loading}
+                className="min-h-9 rounded-lg px-2 text-xs font-semibold text-[#DFA087] underline-offset-4 hover:underline disabled:opacity-50"
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
 
           {mode === 'register' && (
             <details className="rounded-xl border border-white/10 bg-[#131211]/60 p-3">

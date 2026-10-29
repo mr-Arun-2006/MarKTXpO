@@ -18,7 +18,6 @@ import {
   XCircle,
   ChevronRight,
   Gamepad2,
-  UserPlus,
 } from 'lucide-react';
 
 interface Props {
@@ -27,6 +26,8 @@ interface Props {
   onExploreStock: (stock: StockData) => void;
   onPlayGame?: () => void;
   onRegister?: () => void;
+  onSignIn?: () => void;
+  isAuthenticated?: boolean;
   featuredStocks: StockData[];
   language: SupportedLanguage;
 }
@@ -37,6 +38,8 @@ export const LandingPage: React.FC<Props> = ({
   onExploreStock,
   onPlayGame,
   onRegister,
+  onSignIn,
+  isAuthenticated = false,
   featuredStocks,
   language,
 }) => {
@@ -69,14 +72,14 @@ export const LandingPage: React.FC<Props> = ({
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-3 sm:gap-4 pt-3">
             <button
-              onClick={onLaunchDashboard}
+              onClick={isAuthenticated ? onLaunchDashboard : (onRegister || onLaunchDashboard)}
               className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl bg-gradient-to-r from-[#D96B43] to-[#B85D3B] text-[#FFFDF8] font-bold text-sm shadow-lg shadow-[#D96B43]/25 hover:brightness-110 active:scale-95 transition whitespace-nowrap"
             >
-              <span>Launch Terminal</span>
+              <span>{isAuthenticated ? 'Open market terminal' : 'Create free account'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 
-            {onLaunchEod && (
+            {isAuthenticated && onLaunchEod && (
               <button
                 onClick={onLaunchEod}
                 className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl border border-[#8CB4E0]/35 bg-[#8CB4E0]/10 hover:bg-[#8CB4E0]/20 text-[#BFD6F2] text-sm font-semibold transition whitespace-nowrap"
@@ -86,7 +89,7 @@ export const LandingPage: React.FC<Props> = ({
               </button>
             )}
 
-            {onPlayGame && (
+            {isAuthenticated && onPlayGame && (
               <button
                 onClick={onPlayGame}
                 className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl border border-[#22C55E]/40 bg-[#1A1816] hover:bg-[#22C55E]/15 text-[#22C55E] text-sm font-semibold transition whitespace-nowrap"
@@ -96,28 +99,32 @@ export const LandingPage: React.FC<Props> = ({
               </button>
             )}
 
-            {onRegister && (
+            {!isAuthenticated && onSignIn && (
               <button
-                onClick={onRegister}
-                className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl border border-[#D96B43]/40 bg-[#1A1816] hover:bg-[#D96B43]/20 text-[#D96B43] text-sm font-semibold transition whitespace-nowrap"
+                onClick={onSignIn}
+                className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl border border-white/15 bg-[#1A1816] hover:bg-[#25221F] text-[#F7EEDB] text-sm font-semibold transition whitespace-nowrap"
               >
-                <UserPlus className="w-4 h-4" />
-                <span>Register Free Account</span>
+                <ArrowRight className="w-4 h-4" />
+                <span>Already have an account? Sign in</span>
               </button>
             )}
 
-            <button
-              onClick={() => { if (featuredStocks[0]) onExploreStock(featuredStocks[0]); }}
-              disabled={featuredStocks.length === 0}
-              className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl border border-[#D96B43]/30 bg-[#1A1816] hover:bg-[#25221F] text-[#F7EEDB] text-sm font-semibold transition whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Brain className="w-4 h-4 text-[#8CB4E0]" />
-              <span>Explore AI Trade Thesis</span>
-            </button>
+            {isAuthenticated && (
+              <button
+                onClick={() => { if (featuredStocks[0]) onExploreStock(featuredStocks[0]); }}
+                disabled={featuredStocks.length === 0}
+                className="flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] rounded-xl border border-[#D96B43]/30 bg-[#1A1816] hover:bg-[#25221F] text-[#F7EEDB] text-sm font-semibold transition whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Brain className="w-4 h-4 text-[#8CB4E0]" />
+                <span>Explore AI analysis</span>
+              </button>
+            )}
 
-            <div className="flex justify-center">
-              <PWAInstallButton />
-            </div>
+            {isAuthenticated && (
+              <div className="flex justify-center">
+                <PWAInstallButton />
+              </div>
+            )}
           </div>
 
           {/* Trust badges */}

@@ -45,9 +45,14 @@ export const DashboardView: React.FC<Props> = ({
   customApiKey,
 }) => {
   const [filterSentiment, setFilterSentiment] = useState<'ALL' | 'BULLISH' | 'PRICE_GAP'>('ALL');
-  const [showHeatmap, setShowHeatmap] = useState<boolean>(true);
+  const [showHeatmap, setShowHeatmap] = useState<boolean>(false);
   const [newsViewTab, setNewsViewTab] = useState<'MARKET_NEWS' | 'AI_DIGEST'>('MARKET_NEWS');
   const t = translations[language];
+  const advancingCount = stocks.filter((stock) => stock.changePercent > 0).length;
+  const decliningCount = stocks.filter((stock) => stock.changePercent < 0).length;
+  const averageMove = stocks.length
+    ? stocks.reduce((total, stock) => total + stock.changePercent, 0) / stocks.length
+    : 0;
 
   // Ranking is based only on observed quote/technical values. It is not an AI forecast.
   const priceMomentumScore = (stock: StockData) => [
@@ -74,14 +79,14 @@ export const DashboardView: React.FC<Props> = ({
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-[#F7EEDB]">
-              Equities Intelligence &amp; Surveillance
+              Market overview
             </h1>
             <span className="text-[11px] text-[#D96B43] font-semibold font-mono tracking-wider">
               NSE · BSE
             </span>
           </div>
           <p className="text-xs text-[#F7EEDB]/65 mt-1">
-            Third-party exchange quotes and historical technical indicators. Official market depth, delivery statistics, FII/DII flows and verified social/news sentiment are not connected.
+            Track prices, compare momentum and open an evidence-based AI explanation. Quotes are third-party reference data and may be delayed.
           </p>
         </div>
 
@@ -109,11 +114,11 @@ export const DashboardView: React.FC<Props> = ({
             <span>Sector Heatmap</span>
           </button>
           <button
-            onClick={() => setActiveView('game')}
-            className="flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl border border-[#22C55E]/40 bg-[#1A1816] text-xs font-semibold text-[#22C55E] hover:bg-[#22C55E]/15 hover:border-[#22C55E] transition active:scale-95 whitespace-nowrap shrink-0"
+            onClick={() => setActiveView('eod')}
+            className="flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-xl border border-[#8CB4E0]/35 bg-[#1A1816] text-xs font-semibold text-[#F7EEDB] hover:bg-[#8CB4E0]/10 hover:border-[#8CB4E0] transition whitespace-nowrap shrink-0"
           >
-            <Gamepad2 className="w-3.5 h-3.5" />
-            <span>Trading Academy Game</span>
+            <Activity className="w-3.5 h-3.5 text-[#8CB4E0]" />
+            <span>AI EOD Analysis</span>
           </button>
           <button
             onClick={() => setActiveView('compare')}
@@ -132,12 +137,34 @@ export const DashboardView: React.FC<Props> = ({
         </div>
       </div>
 
+      {/* At-a-glance market summary */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Market summary">
+        <div className="rounded-xl border border-white/10 bg-[#1A1816] p-3 sm:p-4">
+          <p className="text-[11px] text-white/55">Stocks available</p>
+          <p className="mt-1 font-mono text-xl font-bold tabular-nums">{stocks.length}</p>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-[#1A1816] p-3 sm:p-4">
+          <p className="text-[11px] text-white/55">Advancing</p>
+          <p className="mt-1 font-mono text-xl font-bold text-emerald-400 tabular-nums">{advancingCount}</p>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-[#1A1816] p-3 sm:p-4">
+          <p className="text-[11px] text-white/55">Declining</p>
+          <p className="mt-1 font-mono text-xl font-bold text-rose-400 tabular-nums">{decliningCount}</p>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-[#1A1816] p-3 sm:p-4">
+          <p className="text-[11px] text-white/55">Average daily move</p>
+          <p className={"mt-1 font-mono text-xl font-bold tabular-nums " + (averageMove >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
+            {averageMove > 0 ? '+' : ''}{averageMove.toFixed(2)}%
+          </p>
+        </div>
+      </section>
+
       {/* Sparkline Momentum Overview Strip (Green / Red) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
           <div className="flex items-center gap-2 font-mono uppercase tracking-wider text-[#8CB4E0] text-[11px]">
             <Activity className="w-3.5 h-3.5 text-[#D96B43]" />
-            <span>Momentum Sparklines · 18-Day Recharts Trend</span>
+            <span>Watchlist snapshot · Price and daily change</span>
           </div>
           <span className="text-[11px] text-[#F7EEDB]/50">At a glance</span>
         </div>
@@ -346,7 +373,7 @@ export const DashboardView: React.FC<Props> = ({
 
               <span className="text-[11px] text-[#F7EEDB]/50 font-mono hidden sm:inline">
                 {newsViewTab === 'MARKET_NEWS'
-                  ? 'Real-time Indian financial headlines'
+                  ? 'Latest sourced Indian market headlines'
                   : `Gemini synthesis for ${selectedStock.ticker}`}
               </span>
             </div>
@@ -378,10 +405,10 @@ export const DashboardView: React.FC<Props> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Brain className="w-4 h-4 text-[#D96B43]" />
-                <h3 className="text-sm font-bold text-[#F7EEDB]">Price-Momentum Ranker</h3>
+                <h3 className="text-sm font-bold text-[#F7EEDB]">Momentum leaders</h3>
               </div>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#8CB4E0]/15 text-[#8CB4E0] font-mono font-semibold border border-[#8CB4E0]/40 shadow-[0_0_8px_rgba(140,180,224,0.2)]">
-                PROPRIETARY
+                RULE-BASED
               </span>
             </div>
 
@@ -397,7 +424,7 @@ export const DashboardView: React.FC<Props> = ({
                       : 'text-[#F7EEDB]/60 hover:text-[#F7EEDB] hover:border-[#D96B43]/40'
                   }`}
                 >
-                  {filter}
+                  {filter === 'ALL' ? 'All stocks' : filter === 'BULLISH' ? 'Strong trend' : 'Price gap'}
                 </button>
               ))}
             </div>
@@ -481,7 +508,7 @@ export const DashboardView: React.FC<Props> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-[#D96B43]" />
-                <h3 className="text-sm font-bold text-[#F7EEDB]">Quote-Derived Shift Alerts</h3>
+                <h3 className="text-sm font-bold text-[#F7EEDB]">Recent quote alerts</h3>
               </div>
               <button
                 onClick={() => setActiveView('alerts')}

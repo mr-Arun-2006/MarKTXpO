@@ -1,10 +1,5 @@
-import React, { useState } from 'react';
-import {
-  RefreshCw,
-  Info,
-  Clock,
-  ChevronDown,
-} from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { RefreshCw, Info, Clock3, ChevronDown, Wifi, WifiOff } from 'lucide-react';
 
 interface Props {
   isLiveOfficial: boolean;
@@ -24,110 +19,102 @@ export const OfficialMarketBanner: React.FC<Props> = ({
   stockCount,
 }) => {
   const [showDetails, setShowDetails] = useState(false);
+  const fetchedAt = useMemo(() => {
+    if (!lastLiveSync) return null;
+    const date = new Date(lastLiveSync);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }, [lastLiveSync]);
+  const isStale = Boolean(fetchedAt && Date.now() - fetchedAt.getTime() > 120_000);
+  const status = isUnavailable
+    ? 'Feed unavailable'
+    : !fetchedAt
+      ? 'Connecting'
+      : isStale
+        ? 'Last update may be stale'
+        : 'Reference feed connected';
 
-  const formattedTime = lastLiveSync
-    ? new Date(lastLiveSync).toLocaleTimeString('en-IN', {
+  const formattedTime = fetchedAt
+    ? fetchedAt.toLocaleTimeString('en-IN', {
         timeZone: 'Asia/Kolkata',
         hour: '2-digit',
         minute: '2-digit',
-        second: '2-digit',
       }) + ' IST'
-    : 'Connecting...';
+    : 'Not fetched yet';
+
+  const statusColor = isUnavailable || isStale
+    ? 'text-amber-300'
+    : !fetchedAt
+      ? 'text-[#F7EEDB]/65'
+      : 'text-sky-300';
 
   return (
-    <div className="w-full bg-[#181614] border-b border-[#D96B43]/30 px-2.5 sm:px-5 lg:px-8 py-1.5 text-xs text-[#F7EEDB] transition-all">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 overflow-x-auto scrollbar-none">
-        {/* Left: Verification status */}
-        <div className="flex items-center gap-2 min-w-0 shrink-0">
-          <span
-            className={`font-mono font-bold text-[10px] sm:text-[11px] whitespace-nowrap ${
-              isUnavailable
-                ? 'text-[#EF4444]'
-                : !lastLiveSync
-                ? 'text-[#F7EEDB]/70'
-                : isLiveOfficial
-                ? 'text-[#22C55E]'
-                : 'text-[#D96B43]'
-            }`}
-          >
-            {isUnavailable
-              ? 'Market Data Unavailable'
-              : !lastLiveSync
-              ? 'Connecting Feed'
-              : 'Yahoo Finance Feed'}
+    <section className="w-full border-b border-white/10 bg-[#181614] px-3 py-2 text-xs text-[#F7EEDB]" aria-label="Market data status">
+      <div className="mx-auto flex max-w-7xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-2">
+          {isUnavailable ? (
+            <WifiOff className="h-3.5 w-3.5 shrink-0 text-amber-300" />
+          ) : (
+            <Wifi className="h-3.5 w-3.5 shrink-0 text-sky-300" />
+          )}
+          <span className={"font-semibold " + statusColor}>{status}</span>
+          <span className="hidden text-white/25 sm:inline">·</span>
+          <span className="truncate text-[11px] text-white/55">
+            {isLiveOfficial ? 'Licensed exchange feed' : 'Yahoo Finance third-party reference data'}
           </span>
-
-          <span className="text-[#F7EEDB]/35 hidden sm:inline" aria-hidden="true">·</span>
-          <span className="hidden md:inline text-[11px] text-[#8CB4E0] truncate">
-            {isUnavailable
-              ? 'Quote API returned no verified quotes'
-              : !lastLiveSync
-              ? 'Waiting for quote service'
-              : 'Third-party quote/history data; not an official exchange feed'}
-          </span>
-          <span className="text-[#F7EEDB]/35" aria-hidden="true">·</span>
-          <span className="font-mono text-[10px] sm:text-[11px] text-[#F7EEDB]/80 whitespace-nowrap tabular-nums">
-            {stockCount} Equities
+          <span className="shrink-0 rounded-md bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/65">
+            {stockCount} symbols
           </span>
         </div>
 
-        {/* Right: Timestamp & Refresh & Details toggle */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <div className="hidden lg:flex items-center gap-1 font-mono text-[11px] text-[#F7EEDB]/60 whitespace-nowrap tabular-nums">
-            <Clock className="w-3.5 h-3.5 text-[#D96B43]" />
-            <span>
-              Synced: <span className="text-[#F7EEDB] font-medium">{formattedTime}</span>
-            </span>
-          </div>
-
+        <div className="flex items-center justify-between gap-2 sm:justify-end">
+          <span className="flex items-center gap-1.5 whitespace-nowrap text-[11px] text-white/55">
+            <Clock3 className="h-3.5 w-3.5" />
+            Fetched {formattedTime}
+          </span>
           <button
-            onClick={() => setShowDetails(!showDetails)}
-            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg bg-[#25221F] hover:bg-[#322D29] border border-[#D96B43]/30 text-[10px] sm:text-[11px] font-medium text-[#F7EEDB] transition active:scale-95 whitespace-nowrap shrink-0"
-            title="Inspect data sources and limitations"
+            type="button"
+            onClick={() => setShowDetails((value) => !value)}
+            aria-expanded={showDetails}
+            className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-white/75 transition hover:bg-white/5"
           >
-            <Info className="w-3 h-3 text-[#8CB4E0]" />
-            <span>Sources</span>
-            <ChevronDown className={`w-3 h-3 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
+            <Info className="h-3 w-3" />
+            Sources
+            <ChevronDown className={"h-3 w-3 transition-transform " + (showDetails ? 'rotate-180' : '')} />
           </button>
-
           <button
-            onClick={onRefresh}
+            type="button"
+            onClick={() => { void onRefresh(); }}
             disabled={isRefreshing}
-            className="flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-lg bg-gradient-to-r from-[#D96B43] to-[#B85D3B] text-[#131211] font-bold text-[10px] sm:text-[11px] hover:brightness-110 border border-[#F7EEDB]/30 shadow-[0_0_10px_rgba(217,107,67,0.3)] transition active:scale-95 disabled:opacity-50 whitespace-nowrap shrink-0"
+            className="inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-[#D96B43] px-3 py-1.5 text-[11px] font-bold text-[#131211] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span className="hidden xs:inline sm:inline">
-              {isRefreshing ? 'Syncing...' : 'Refresh'}
-            </span>
+            <RefreshCw className={"h-3 w-3 " + (isRefreshing ? 'animate-spin' : '')} />
+            {isRefreshing ? 'Updating' : 'Refresh'}
           </button>
         </div>
       </div>
 
-      {/* Expandable source and data-limitations drawer */}
       {showDetails && (
-        <div className="max-w-7xl mx-auto mt-2 pt-2 border-t border-[#D96B43]/20 grid grid-cols-1 md:grid-cols-3 gap-2.5 text-[11px] animate-fadeIn">
-          <div className="p-2.5 rounded-lg bg-[#131211]/80 border border-[#8CB4E0]/30 space-y-1">
-            <div className="font-bold text-[#8CB4E0]">Quote and history source</div>
-            <p className="text-[#F7EEDB]/70">
-              Price quotes and historical candles are retrieved from Yahoo Finance. This is a third-party data source, not a direct NSE or BSE exchange feed, and data may be delayed or unavailable.
+        <div className="mx-auto mt-2 grid max-w-7xl grid-cols-1 gap-2 border-t border-white/10 pt-3 text-[11px] sm:grid-cols-3">
+          <div className="rounded-lg bg-black/20 p-3">
+            <h3 className="mb-1 font-semibold text-sky-200">Quote source</h3>
+            <p className="leading-5 text-white/60">
+              Prices and index values come from Yahoo Finance, a third-party provider. This application does not connect directly to the NSE or BSE exchange feed. Availability and delay depend on the provider.
             </p>
           </div>
-
-          <div className="p-2.5 rounded-lg bg-[#131211]/80 border border-[#D96B43]/30 space-y-1">
-            <div className="font-bold text-[#D96B43]">Technical indicators</div>
-            <p className="text-[#F7EEDB]/70">
-              RSI, moving averages, MACD, and Bollinger Bands are calculated from observed historical closing prices. Equities without sufficient history are excluded from this feed.
+          <div className="rounded-lg bg-black/20 p-3">
+            <h3 className="mb-1 font-semibold text-[#F0A17F]">Calculated indicators</h3>
+            <p className="leading-5 text-white/60">
+              Moving averages, RSI, MACD and related technical values are calculated from retrieved historical candles. Missing observations are not replaced with invented prices.
             </p>
           </div>
-
-          <div className="p-2.5 rounded-lg bg-[#131211]/80 border border-[#F7EEDB]/20 space-y-1">
-            <div className="font-bold text-[#F7EEDB]">Data limitations</div>
-            <p className="text-[#F7EEDB]/70">
-              Some company fundamentals remain registry reference values. Delivery statistics, institutional flows, verified news sentiment, and exchange circuit limits are not validated from a live official source.
+          <div className="rounded-lg bg-black/20 p-3">
+            <h3 className="mb-1 font-semibold text-white/80">Freshness and limitations</h3>
+            <p className="leading-5 text-white/60">
+              “Fetched” is when this application last received a response, not the exchange trade time. Check the quote timestamp shown for each stock. Registry fundamentals and unavailable delivery or institutional-flow data are not live verified values.
             </p>
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 };

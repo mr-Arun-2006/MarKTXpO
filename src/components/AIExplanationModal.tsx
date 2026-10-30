@@ -111,6 +111,7 @@ export const AIExplanationModal: React.FC<Props> = ({
       const res = await fetch('/api/ai/explain', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await auth.currentUser?.getIdToken() || '') },
+        signal: AbortSignal.timeout(45_000),
         body: JSON.stringify({
           ticker: stock.ticker,
           companyName: stock.name,
@@ -169,8 +170,8 @@ export const AIExplanationModal: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-2xl bg-[#1A1816] border border-[#D96B43]/30 shadow-2xl overflow-hidden text-[#F7EEDB]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-2 sm:p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-4xl max-h-[calc(100dvh-1rem)] sm:max-h-[90vh] flex flex-col rounded-2xl bg-[#1A1816] border border-[#D96B43]/30 shadow-2xl overflow-hidden text-[#F7EEDB]">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#D96B43]/15 bg-[#1A1816]">
           <div className="flex items-center gap-3">
@@ -210,7 +211,7 @@ export const AIExplanationModal: React.FC<Props> = ({
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex items-center gap-2 px-5 py-3 border-b border-[#D96B43]/15 bg-[#131211]/80">
+        <div className="flex flex-wrap items-center gap-2 px-3 py-3 sm:px-5 border-b border-[#D96B43]/15 bg-[#131211]/80">
           <button
             onClick={() => setActiveTab('ai')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
@@ -256,7 +257,7 @@ export const AIExplanationModal: React.FC<Props> = ({
                   <div className="text-center space-y-1">
                     <p className="font-semibold text-[#F7EEDB]">Synthesizing Equities Intelligence...</p>
                     <p className="text-xs text-[#F7EEDB]/60">
-                      Processing technical indicators, institutional order flow, and macroeconomic catalysts.
+                      Reviewing observed price, trend and momentum indicators. Grounded news context is included only when sources are available.
                     </p>
                   </div>
                 </div>

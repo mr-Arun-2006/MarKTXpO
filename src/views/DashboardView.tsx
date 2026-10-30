@@ -246,7 +246,7 @@ export const DashboardView: React.FC<Props> = ({
                   <span>•</span>
                   <span className="text-[#8CB4E0] font-mono text-[11px]">Yahoo Finance quote/history metadata · third-party reference data</span>
                   <span className="text-[10px] text-[#F7EEDB]/50">
-                    {selectedStock.marketState === 'REGULAR' ? 'Provider reports regular session' : 'Latest provider quote'}
+                    {selectedStock.marketState === 'REGULAR' ? 'Provider reports regular session' : selectedStock.marketState === 'CLOSED' ? 'Provider reports closed session' : selectedStock.marketState === 'PRE' ? 'Provider reports pre-market' : selectedStock.marketState === 'POST' ? 'Provider reports post-market' : 'Provider session state unavailable'}
                     {selectedStock.quoteTimestamp
                       ? ` · ${new Date(selectedStock.quoteTimestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST`
                       : ' · Quote timestamp unavailable'}
@@ -254,7 +254,7 @@ export const DashboardView: React.FC<Props> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
+              <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:w-auto sm:flex-nowrap sm:justify-end">
                 <div className="text-right space-y-1">
                   <div className="text-2xl font-bold text-[#F7EEDB] font-mono">₹{selectedStock.currentPrice.toFixed(2)}</div>
                   <div className="flex items-center justify-end gap-2">
@@ -406,10 +406,13 @@ export const DashboardView: React.FC<Props> = ({
                 <Brain className="w-4 h-4 text-[#D96B43]" />
                 <h3 className="text-sm font-bold text-[#F7EEDB]">Momentum leaders</h3>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#8CB4E0]/15 text-[#8CB4E0] font-mono font-semibold border border-[#8CB4E0]/40 shadow-[0_0_8px_rgba(140,180,224,0.2)]">
-                RULE-BASED
+              <span className="text-[10px] rounded-full bg-white/5 px-2 py-1 font-medium text-white/55">
+                Price and trend data
               </span>
             </div>
+            <p className="text-[11px] leading-5 text-white/55">
+              Sorted using observed momentum indicators. This is not an AI forecast or a buy/sell recommendation.
+            </p>
 
             {/* Filter pills */}
             <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#131211] border border-[#D96B43]/30 text-xs">

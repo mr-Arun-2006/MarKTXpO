@@ -12,9 +12,25 @@ export function getFirebaseAuthErrorMessage(error: unknown, provider: AuthProvid
   const projectId = String(firebaseConfigData.projectId || 'your Firebase project');
   const hostname = typeof window !== 'undefined' ? window.location.hostname : 'your deployed hostname';
   const authDomain = String(firebaseConfigData.authDomain || '');
+  const firebaseSettingsUrl = `https://console.firebase.google.com/project/${encodeURIComponent(projectId)}/authentication/settings`;
+  const stableProductionHostname = 'marktxpocom.vercel.app';
 
   if (code === 'auth/unauthorized-domain') {
-    return `Firebase blocked this website domain: ${hostname}. In Firebase Console for project "${projectId}", open Authentication → Settings → Authorized domains and add exactly "${hostname}" (hostname only: no https://, port, or path). Also add your stable production domain so future deploys continue to work. Save, reload the site, and try Google sign-in again. Firebase auth domain: ${authDomain}.`;
+    const wrongProjectHint = projectId === 'cobalt-plating-p01dl'
+      ? 'The app is configured for cobalt-plating-p01dl. If the domains list shows marktxpo.firebaseapp.com or marktxpo.web.app, switch Firebase Console to cobalt-plating-p01dl; those are domains for a different Firebase project.'
+      : '';
+    const productionHint = hostname === stableProductionHostname
+      ? ''
+      : ` Also authorize the stable production hostname "${stableProductionHostname}" so future production visits work.`;
+
+    return [
+      `Firebase rejected the website hostname "${hostname}".`,
+      `Open Firebase Authentication settings: ${firebaseSettingsUrl}`,
+      `Confirm the selected project is "${projectId}" (configured auth domain: "${authDomain}").`,
+      `Under Authentication → Settings → Authorized domains, add exactly "${hostname}" — hostname only, without https://, a port, or a path.${productionHint}`,
+      wrongProjectHint,
+      'Save the change, reload this site, and retry sign-in. The authorized-domain list is managed in Firebase Console; it cannot be changed by frontend code.',
+    ].filter(Boolean).join(' ');
   }
   if (code === 'auth/operation-not-allowed') {
     if (provider === 'google') return 'Google sign-in is disabled for this Firebase project. Enable Google under Firebase Console → Authentication → Sign-in method.';

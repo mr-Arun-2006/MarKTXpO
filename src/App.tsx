@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { StockData, SupportedLanguage, UserProfile, MarketAlert, CustomStrategy } from './types/market';
 import { INITIAL_STOCKS } from './data/mockMarketData';
@@ -54,6 +54,7 @@ export default function App() {
   const [isLiveOfficial, setIsLiveOfficial] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isMarketDataUnavailable, setIsMarketDataUnavailable] = useState<boolean>(false);
+  const refreshInFlightRef = useRef(false);
 
   // Active strategy passed to backtester
   const [activeStrategy, setActiveStrategy] = useState<CustomStrategy | undefined>(undefined);
@@ -143,10 +144,12 @@ export default function App() {
 
 // Fetch quote and historical data through the configured server API
   const handleRefreshRealData = async () => {
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
     setIsRefreshing(true);
     try {
       const data = await fetchRealStockQuotes();
-      if (data && data.stocks && data.stocks.length > 0) {
+      if (data?.success && Array.isArray(data.stocks) && data.stocks.length > 0) {
         setStocks(data.stocks);
         setLastLiveSync(data.timestamp || new Date().toISOString());
         setIsLiveOfficial(data.isLiveOfficial ?? false);
@@ -169,11 +172,12 @@ export default function App() {
       setIsMarketDataUnavailable(true);
       console.warn('[App] Market data refresh failed:', err);
     } finally {
+      refreshInFlightRef.current = false;
       setIsRefreshing(false);
     }
   };
 
-  // Stock selection that triggers official history fetch
+  // Stock selection that loads third-party reference history for the selected symbol
   const handleSelectStock = async (stock: StockData) => {
     setSelectedStock(stock);
     try {
@@ -185,11 +189,22 @@ export default function App() {
     } catch {}
   };
 
-  // Initial real data sync and polling interval
+  // Refresh sequentially so slow provider responses never overlap or overwrite newer quotes.
+  // Yahoo Finance is a third-party reference source; a 60-second poll avoids needless requests.
   useEffect(() => {
-    handleRefreshRealData();
-    const interval = setInterval(handleRefreshRealData, 25000);
-    return () => clearInterval(interval);
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const sync = async () => {
+      await handleRefreshRealData();
+      if (!stopped) timer = setTimeout(() => { void sync(); }, 60_000);
+    };
+
+    void sync();
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   // Fetch real historical candles for initial active stock
@@ -396,13 +411,13 @@ export default function App() {
 
       {/* Active View Router */}
       <main className={activeView === 'auth' ? 'flex-1 w-full' : 'flex-1 w-full pb-24 lg:pb-10'}>
-        {activeView !== 'landing' && activeView !== 'profile' && activeView !== 'eod' && activeView !== 'account' && activeView !== 'auth' && (stocks.length === 0 || isMarketDataUnavailable) ? (
+        {activeView !== 'landing' && activeView !== 'profile' && activeView !== 'eod' && activeView !== 'account' && activeView !== 'auth' && stocks.length === 0 ? (
           <section className="mx-auto flex min-h-[55vh] max-w-3xl flex-col items-center justify-center gap-4 px-5 py-12 text-center">
             <div className="rounded-2xl border border-[#D96B43]/25 bg-[#1A1816] p-6 shadow-xl">
-              <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#D96B43]">Market data unavailable</div>
-              <h2 className="mt-3 text-2xl font-black text-[#F7EEDB]">Waiting for a real market-data response</h2>
+              <div className="text-xs font-bold uppercase tracking-[0.2em] text-[#D96B43]">{isMarketDataUnavailable ? 'Market feed unavailable' : 'Connecting to market data'}</div>
+              <h2 className="mt-3 text-2xl font-black text-[#F7EEDB]">{isMarketDataUnavailable ? 'We could not retrieve current quotes' : 'Loading verified quote responses'}</h2>
               <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[#F7EEDB]/60">
-                Stock-driven features are paused until the configured source returns usable quotes. This prevents placeholder prices or sample alerts from being presented as live market data.
+                {isMarketDataUnavailable ? 'No quote snapshot is available yet. Check the configured provider and try again.' : 'Connecting to the configured third-party market-data provider. Prices are not replaced with sample values.'}
               </p>
               <p className="mt-2 text-xs text-[#F7EEDB]/45">
                 The default source is Yahoo Finance third-party reference data, not an official NSE/BSE feed. Check provider access and deployment secrets before retrying.

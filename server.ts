@@ -152,6 +152,9 @@ app.post('/api/ai/explain', requireAuth, async (req: AuthRequest, res) => {
   const companyName = safeString(body.companyName, ticker, 120);
   const sector = safeString(body.sector, 'Unavailable', 80);
   const language = safeString(body.language, 'English', 40);
+  const quoteTimestamp = safeString(body.quoteTimestamp, 'Unavailable', 60);
+  const marketState = safeString(body.marketState, 'Unavailable', 30);
+  const dataSource = safeString(body.dataSource, 'Unknown', 180);
   const price = safeNumber(body.price);
   const changePercent = safeNumber(body.changePercent);
   const rsi = safeNumber(body.rsi);
@@ -191,8 +194,9 @@ Market quotes are from a third-party provider, not a verified exchange order boo
   }
 
   const cacheKey = [
-    'explain', ticker, language, price, changePercent, rsi, macdSignal,
-    dma50, dma200, pe, nsePrice, bsePrice, volumeMultiplier, arbitragePercent,
+    'explain', ticker, language, quoteTimestamp, marketState, dataSource,
+    price, changePercent, rsi, macdSignal, dma50, dma200, pe, nsePrice, bsePrice,
+    volumeMultiplier, arbitragePercent,
   ].join('_');
   const cached = aiAnalysisCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now() && cached.data?.dataAvailable !== false) {
@@ -210,8 +214,13 @@ Market quotes are from a third-party provider, not a verified exchange order boo
   }
 
   const prompt = `
-Explain this third-party quote snapshot for Indian equity ${companyName} (${ticker}) in ${language}.
-All values below were supplied by the caller and have not been independently verified:
+Explain the supplied Indian equity snapshot for ${companyName} (${ticker}) in ${language}.
+Treat every value as caller-supplied third-party data, not independently verified exchange data.
+Source metadata:
+- Provider/source label: ${dataSource}
+- Provider quote timestamp: ${quoteTimestamp}
+- Provider market state: ${marketState}
+Observed inputs:
 - Sector: ${sector}
 - Price: ₹${price}; daily change: ${changePercent !== undefined ? `${changePercent}%` : 'unavailable'}
 - RSI(14): ${rsi ?? 'unavailable'}
@@ -222,7 +231,21 @@ All values below were supplied by the caller and have not been independently ver
 - Cross-provider price difference: ${arbitragePercent !== undefined ? `${arbitragePercent}%` : 'unavailable'}
 - Volume multiplier: ${volumeMultiplier ?? 'unavailable'}
 
-Do not invent current news, macroeconomic catalysts, institutional flows, delivery data, market depth, or trading costs. Do not describe the provider as an official exchange feed. Clearly distinguish observed inputs from interpretation and explain missing fields. If you discuss a possible trade setup, make it conditional and educational, not a recommendation or guarantee. Mention that any price difference is not an executable arbitrage opportunity without synchronized bid/ask quotes, market depth and fees.
+Write a clear, concise Markdown report in this exact structure:
+### Snapshot quality
+State the source and quote timestamp. Say when timestamp or source detail is unavailable; do not infer that a fetched response is a fresh exchange trade.
+### What the indicators show
+Explain price change, RSI, MACD and moving-average context using only the supplied numbers. Explain any important missing values.
+### Positive evidence
+List only signals supported by the observed inputs. Write “None identified from the supplied inputs” when appropriate.
+### Risks and conflicting evidence
+Explain bearish, overbought/oversold, disagreement or data-quality risks actually supported by the inputs.
+### What to monitor next
+Give neutral items to verify, not entry or exit instructions.
+### Data limitations
+State that Yahoo Finance is a third-party reference source when applicable. No direct official NSE/BSE feed, verified delivery statistics, FII/DII flows, market depth, synchronized bid/ask quotes, or trading costs are supplied here.
+
+Do not invent current news, macroeconomic catalysts, institutional flows, delivery data, market depth, or trading costs. Do not give buy/sell recommendations, target prices, stop-loss levels, or guarantees. Any NSE/BSE price difference is not an executable arbitrage opportunity without synchronized bid/ask quotes, market depth and fees.
 `;
 
   try {

@@ -100,10 +100,10 @@ export const AIExplanationModal: React.FC<Props> = ({
     setError(null);
     try {
       const langNames: Record<SupportedLanguage, string> = {
+        ta: 'Tamil (தமிழ்)',
         en: 'English',
         hi: 'Hindi (हिन्दी)',
         gu: 'Gujarati (ગુજરાતી)',
-        ta: 'Tamil (தமிழ்)',
         mr: 'Marathi (मराठी)',
         bn: 'Bengali (বাংলা)',
       };
@@ -220,7 +220,7 @@ export const AIExplanationModal: React.FC<Props> = ({
             }`}
           >
             <Sparkles className="w-3.5 h-3.5 fill-current" />
-            <span>AI Deep Synthesis (Gemini 3.8 Flash)</span>
+            <span>AI</span>
           </button>
 
           <button
@@ -232,7 +232,7 @@ export const AIExplanationModal: React.FC<Props> = ({
             }`}
           >
             <Sliders className="w-3.5 h-3.5" />
-            <span>Rule-Based Verification Engine</span>
+            <span>Rule-Based </span>
             <span
               className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
                 totalScore >= 70 ? 'bg-[#131211] text-[#D96B43]' : 'bg-[#131211] text-[#EF4444]'

@@ -1,10 +1,10 @@
-# name-neo Architecture
+# MarKTXpO Architecture
 
 Production-grade architecture for the MarKtXPO-inspired market intelligence platform.
 
 ## 1. Overview
 
-`name-neo` is a stock intelligence, AI insight, and market-analysis application built around:
+`MarKTXpO` is a stock intelligence, AI insight, and market-analysis application built around:
 
 - a React + Vite frontend
 - an Express API layer

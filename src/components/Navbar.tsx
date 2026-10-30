@@ -103,12 +103,12 @@ export const Navbar: React.FC<Props> = ({
   const navItems = isAuthenticated ? allNavItems : allNavItems.filter((item) => item.id === 'landing');
 
   const languages: { code: SupportedLanguage; label: string }[] = [
-    { code: 'en', label: 'English' },
-    { code: 'hi', label: 'हिन्दी' },
-    { code: 'gu', label: 'ગુજરાતી' },
-    { code: 'ta', label: 'தமிழ்' },
-    { code: 'mr', label: 'मराठी' },
-    { code: 'bn', label: 'বাংলা' },
+    { code: 'TA', label: 'தமிழ்' },
+    { code: 'EN', label: 'English' },
+    { code: 'HI', label: 'हिन्दी' },
+    { code: 'GU', label: 'ગુજરાતી' },
+    { code: 'MR', label: 'मराठी' },
+    { code: 'BN', label: 'বাংলা' },
   ];
 
   const [benchmarks, setBenchmarks] = useState<{

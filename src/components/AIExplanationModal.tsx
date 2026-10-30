@@ -111,7 +111,7 @@ export const AIExplanationModal: React.FC<Props> = ({
       const res = await fetch('/api/ai/explain', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await auth.currentUser?.getIdToken() || '') },
-        signal: AbortSignal.timeout(45_000),
+        signal: AbortSignal.timeout(25_000),
         body: JSON.stringify({
           ticker: stock.ticker,
           companyName: stock.name,

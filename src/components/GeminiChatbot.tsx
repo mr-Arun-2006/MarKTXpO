@@ -89,7 +89,7 @@ Explain:
   },
 ];
 
-/*const MODEL_OPTIONS = [
+const MODEL_OPTIONS = [
   {
     id: 'gemini-3.8-flash',
     name: 'Gemini 3.8 Flash',
@@ -108,10 +108,7 @@ Explain:
     description: 'Ultra-low latency for instant rapid definitions & ticker lookup.',
     tag: 'FAST',
   },
-];*/
-
-
-
+] as const;
 
 const QUICK_STARTER_QUESTIONS = [
   'Analyze Reliance Industries: key technical levels & ARPU catalyst',
@@ -339,7 +336,7 @@ Feel free to ask a question below or choose a starter prompt!`,
 
   return (
     <div
-      className={`fixed z-50 transition-all duration-300 flex flex-col bg-[#1A1816] border border-[#D96B43]/35 shadow-[0_8px_36px_rgba(0,0,0,0.85),0_0_24px_rgba(217,107,67,0.25)] overflow-hidden text-[#F7EEDB] ${
+      className={`fixed z-50 transition-all duration-300 flex flex-col bg-[#1A1816] border border-[#D96B43]/35 shadow-[0_8px_36px_rgba(0,0,0,0.85),0_0_24px_rgba(217,107,67,0.25)] overflow-hidden ${
         isExpanded
           ? 'inset-3 sm:inset-6 rounded-2xl'
           : 'bottom-4 right-4 sm:bottom-6 sm:right-6 w-[95vw] sm:w-[480px] h-[640px] max-h-[85vh] rounded-2xl'
@@ -678,7 +675,7 @@ Feel free to ask a question below or choose a starter prompt!`,
         <button
           type="submit"
           disabled={isLoading || !inputQuery.trim()}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#D96B43] to-[#B85D3B] hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:pointer-events-none text-[#131211] font-bold text-xs shadow-md shadow-[#D96B43]/20 transition flex items-center gap-1.5"
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#D96B43] to-[#B85D3B] hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:pointer-events-none text-[#131211] font-bold text-xs transition flex items-center gap-1.5"
         >
           <span>Send</span>
           <Send className="w-3.5 h-3.5" />

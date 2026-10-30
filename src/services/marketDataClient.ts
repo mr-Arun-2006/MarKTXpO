@@ -43,7 +43,7 @@ export async function fetchRealStockQuotes(): Promise<RealMarketResponse | null>
   try {
     const res = await fetch('/api/market/stocks', {
       cache: 'no-store',
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(25_000),
     });
     if (!res.ok) return null;
     const data: RealMarketResponse = await res.json();

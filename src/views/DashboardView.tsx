@@ -18,7 +18,6 @@ import {
   ArrowDownRight,
   ChevronRight,
   Activity,
-  Gamepad2,
   Layers,
   Newspaper,
 } from 'lucide-react';
@@ -138,7 +137,7 @@ export const DashboardView: React.FC<Props> = ({
       </div>
 
       {/* At-a-glance market summary */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Market summary">
+      <section className="market-summary-grid grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Market summary">
         <div className="rounded-xl border border-white/10 bg-[#1A1816] p-3 sm:p-4">
           <p className="text-[11px] text-white/55">Stocks available</p>
           <p className="mt-1 font-mono text-xl font-bold tabular-nums">{stocks.length}</p>

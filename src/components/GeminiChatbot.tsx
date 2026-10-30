@@ -89,7 +89,7 @@ Explain:
   },
 ];
 
-const MODEL_OPTIONS = [
+/*const MODEL_OPTIONS = [
   {
     id: 'gemini-3.8-flash',
     name: 'Gemini 3.8 Flash',
@@ -108,7 +108,10 @@ const MODEL_OPTIONS = [
     description: 'Ultra-low latency for instant rapid definitions & ticker lookup.',
     tag: 'FAST',
   },
-];
+];*/
+
+
+
 
 const QUICK_STARTER_QUESTIONS = [
   'Analyze Reliance Industries: key technical levels & ARPU catalyst',
@@ -144,7 +147,7 @@ export const GeminiChatbot: React.FC<Props> = ({
       {
         id: 'init-1',
         role: 'assistant',
-        content: `Namaste! I am **NseBse Quant AI**, powered by Google Gemini.
+        content: ` I am **NseBse Quant AI**, 
         
 I can assist you with real-time technical analysis on NSE & BSE scrips, candlestick patterns, cross-exchange arbitrage math, and institutional market intelligence.
 
@@ -300,7 +303,7 @@ Feel free to ask a question below or choose a starter prompt!`,
       const errorMsg: ChatMessage = {
         id: `err-${Date.now()}`,
         role: 'assistant',
-        content: `I encountered a network difficulty contacting the Gemini engine. Please check your connectivity or try again with a private Gemini API Key.`,
+        content: `I encountered a network difficulty contacting the  engine. Please check your connectivity or try again with a private API Key.`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         modelUsed: selectedModel,
         isLiveAI: false,
@@ -419,7 +422,7 @@ Feel free to ask a question below or choose a starter prompt!`,
           <div className="flex items-center justify-between">
             <span className="font-bold text-[#F7EEDB] uppercase tracking-wider text-[11px] font-mono flex items-center gap-1.5">
               <Key className="w-3.5 h-3.5 text-[#D96B43]" />
-              <span>Own Gemini Model API Key Setup</span>
+              <span>Own Model API Key Setup</span>
             </span>
             <span className="text-[10px] text-[#F7EEDB]/50">Client-to-Server Proxy Protected</span>
           </div>
@@ -434,7 +437,7 @@ Feel free to ask a question below or choose a starter prompt!`,
                   setLocalApiKey(e.target.value);
                   setKeyStatus({ tested: false });
                 }}
-                placeholder="AIzaSy... (Paste your Google Gemini API Key)"
+                placeholder="AIzaSy... (Paste your API Key)"
                 className="flex-1 px-3 py-2 rounded-xl bg-[#1A1816] border border-[#D96B43]/25 font-mono text-xs text-[#F7EEDB] placeholder:text-[#F7EEDB]/35 focus:outline-none focus:border-[#D96B43]"
               />
 

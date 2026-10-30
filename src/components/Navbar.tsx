@@ -133,7 +133,7 @@ export const Navbar: React.FC<Props> = ({
       } catch {}
     };
     loadBenchmarks();
-    const interval = setInterval(loadBenchmarks, 25000);
+    const interval = setInterval(loadBenchmarks, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -141,9 +141,9 @@ export const Navbar: React.FC<Props> = ({
     <header className="sticky top-0 z-40 w-full border-b border-[#D96B43]/20 bg-[#131211]/95 backdrop-blur-md">
       {/* Live Market Official Benchmarks Strip with Green/Red indicators */}
       <div className="hidden sm:flex items-center gap-6 overflow-x-auto py-1 px-4 text-[11px] font-mono border-b border-[#D96B43]/15 bg-[#131211] text-[#F7EEDB]/80 select-none scrollbar-none">
-        <div className="flex items-center gap-1.5 font-bold text-[#22C55E] shrink-0">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse"></span>
-          <span>MARKET DATA</span>
+        <div className="flex items-center gap-1.5 font-bold text-[#8CB4E0] shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#8CB4E0]"></span>
+          <span>REFERENCE FEED</span>
         </div>
         <div className="flex items-center gap-6 shrink-0">
           {benchmarks.map((idx) => {
@@ -262,7 +262,7 @@ export const Navbar: React.FC<Props> = ({
 
         {/* Desktop Quick Nav Links */}
         <nav className="hidden xl:flex items-center gap-1 text-xs font-semibold shrink-0">
-          {navItems.slice(1, 6).map((item) => {
+          {navItems.filter((item) => ['dashboard', 'eod', 'watchlist', 'screener'].includes(item.id)).map((item) => {
             const Icon = item.icon;
             const active = activeView === item.id;
             return (

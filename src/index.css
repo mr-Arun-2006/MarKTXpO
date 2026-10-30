@@ -375,3 +375,16 @@ button, [role="button"], a {
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* Keep the key market summary readable in two columns on standard phone widths. */
+@media (max-width: 420px) {
+  .market-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 350px) {
+  .market-summary-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

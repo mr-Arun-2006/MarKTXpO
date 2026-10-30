@@ -1,12 +1,15 @@
 # Firebase OAuth: authorize the deployed hostname
 
-The frontend reads its Firebase project settings from `firebase-applet-config.json`. Google popup sign-in will fail with `auth/unauthorized-domain` until Firebase Authentication explicitly authorizes the hostname where the web app is opened.
+The frontend reads its Firebase project settings from `firebase-applet-config.json`. This repository is configured for Firebase project **`cobalt-plating-p01dl`** with auth domain **`cobalt-plating-p01dl.firebaseapp.com`**.
 
-1. Open [Firebase Console](https://console.firebase.google.com/) and select project `cobalt-plating-p01dl`.
-2. Open **Authentication → Settings → Authorized domains**.
-3. Add the hostname shown in the app's error message. Enter only the hostname (for example, `app.example.com`), not a scheme, port, or path.
-4. Add the stable production hostname as well as any specific preview hostname you actively use. Per-deployment Vercel preview URLs may change.
-5. Under **Authentication → Sign-in method**, ensure the Google provider is enabled.
-6. Reload the deployed app and retry sign-in.
+1. Open [the Firebase Authentication settings for cobalt-plating-p01dl](https://console.firebase.google.com/project/cobalt-plating-p01dl/authentication/settings).
+2. Confirm the Firebase project selector shows **`cobalt-plating-p01dl`**.
+3. Open **Authentication → Settings → Authorized domains**.
+4. Add the Vercel production hostname **`marktxpocom.vercel.app`** if it is not already listed.
+5. Add the exact hostname shown in the app's `auth/unauthorized-domain` message when using a Vercel preview. Enter only the hostname, without `https://`, a port, or a path. Preview hostnames can change between deployments.
+6. Under **Authentication → Sign-in method**, ensure Google sign-in is enabled.
+7. Save, reload the deployed app, and retry sign-in.
 
-The code can tell you which hostname Firebase rejected, but it cannot authorize that domain from the browser. This requires a Firebase Console project-owner/admin action. Do not place service-account credentials in frontend code.
+**Important project mismatch:** if the Authorized domains table shows `marktxpo.firebaseapp.com` and `marktxpo.web.app`, you are likely viewing a different Firebase project. Do not change this app's `authDomain` to `marktxpo.firebaseapp.com`; the app's current Firebase app ID, API key, Firestore and Auth configuration belong to `cobalt-plating-p01dl`. Add the Vercel hostnames to the `cobalt-plating-p01dl` project instead.
+
+The browser cannot add an authorized domain. This requires a Firebase Console project-owner/admin action. Do not put service-account credentials in frontend code.

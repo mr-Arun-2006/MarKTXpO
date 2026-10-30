@@ -71,6 +71,7 @@ export const OfficialMarketBanner: React.FC<Props> = ({
             <Clock3 className="h-3.5 w-3.5" />
             Fetched {formattedTime}
           </span>
+          <span className="hidden whitespace-nowrap text-[10px] text-white/40 md:inline">Auto refresh · 60 sec</span>
           <button
             type="button"
             onClick={() => setShowDetails((value) => !value)}

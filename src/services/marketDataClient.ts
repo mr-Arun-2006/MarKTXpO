@@ -41,9 +41,13 @@ export interface RealHistoryResponse {
  */
 export async function fetchRealStockQuotes(): Promise<RealMarketResponse | null> {
   try {
-    const res = await fetch('/api/market/stocks', { cache: 'no-store' });
+    const res = await fetch('/api/market/stocks', {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(15_000),
+    });
     if (!res.ok) return null;
     const data: RealMarketResponse = await res.json();
+    if (!data?.success || !Array.isArray(data.stocks) || data.stocks.length === 0) return null;
     return data;
   } catch (err) {
     console.warn('[Market Client] Failed to fetch real stock quotes:', err);
@@ -56,10 +60,13 @@ export async function fetchRealStockQuotes(): Promise<RealMarketResponse | null>
  */
 export async function fetchRealBenchmarks(): Promise<BenchmarkIndex[]> {
   try {
-    const res = await fetch('/api/market/benchmarks', { cache: 'no-store' });
+    const res = await fetch('/api/market/benchmarks', {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(12_000),
+    });
     if (!res.ok) return [];
     const data: RealBenchmarksResponse = await res.json();
-    return data.benchmarks || [];
+    return data?.success && Array.isArray(data.benchmarks) ? data.benchmarks : [];
   } catch (err) {
     console.warn('[Market Client] Failed to fetch real benchmarks:', err);
     return [];
@@ -75,10 +82,13 @@ export async function fetchRealStockHistory(
   interval = '1d'
 ): Promise<OHLCVCandle[]> {
   try {
-    const res = await fetch(`/api/market/history?ticker=${encodeURIComponent(ticker)}&range=${encodeURIComponent(range)}&interval=${encodeURIComponent(interval)}`);
+    const res = await fetch(`/api/market/history?ticker=${encodeURIComponent(ticker)}&range=${encodeURIComponent(range)}&interval=${encodeURIComponent(interval)}`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(15_000),
+    });
     if (!res.ok) return [];
     const data: RealHistoryResponse = await res.json();
-    return data.candles || [];
+    return data?.success && Array.isArray(data.candles) ? data.candles : [];
   } catch (err) {
     console.warn(`[Market Client] Failed to fetch real history for ${ticker}:`, err);
     return [];

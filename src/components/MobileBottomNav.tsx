@@ -44,14 +44,15 @@ export const MobileBottomNav: React.FC<Props> = ({
   const [showIOSModal, setShowIOSModal] = useState(false);
 
   const mainTabs = [
-    { id: 'dashboard', label: 'Terminal', icon: BarChart3 },
+    { id: 'dashboard', label: 'Market', icon: BarChart3 },
     { id: 'watchlist', label: 'Watchlist', icon: Coins },
-    { id: 'compare', label: 'Compare', icon: GitCompare },
     { id: 'screener', label: 'Screener', icon: Filter },
+    { id: 'eod', label: 'AI Analysis', icon: Activity },
   ];
 
   const moreItems = [
     { id: 'landing', label: 'Home Overview', icon: Home, desc: 'Intro & features' },
+    { id: 'compare', label: 'NSE vs BSE Compare', icon: GitCompare, desc: 'Compare third-party exchange quotes' },
     { id: 'game', label: 'Trader Academy Game', icon: Gamepad2, desc: 'Interactive charts & paper trading' },
     { id: 'portfolio', label: 'Portfolio Risk', icon: Briefcase, desc: 'VaR & beta analysis' },
     { id: 'strategy', label: 'Strategy Builder', icon: Sliders, desc: 'Custom rules & entries' },

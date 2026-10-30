@@ -163,11 +163,7 @@ export const Navbar: React.FC<Props> = ({
           })}
         </div>
         <div className="ml-auto flex items-center gap-3 text-[#F7EEDB]/50 text-[10px] shrink-0">
-          <span className="text-[#22C55E] font-medium flex items-center gap-1">
-            <span className="w-1 h-1 rounded-full bg-[#22C55E]"></span>
-            THIRD-PARTY QUOTES
-          </span>
-          <span className="text-[#D96B43] font-semibold">YAHOO FINANCE DATA</span>
+         
         </div>
       </div>
 
@@ -175,7 +171,7 @@ export const Navbar: React.FC<Props> = ({
       <div className="max-w-7xl mx-auto flex items-center justify-between px-2.5 sm:px-5 lg:px-8 h-14 sm:h-16 gap-2 sm:gap-3">
         {/* Logo & Brand */}
         <div className="flex items-center gap-2 shrink-0">
-          <button
+          <button        
             onClick={() => setActiveView('landing')}
             className="flex items-center gap-2 text-left group whitespace-nowrap shrink-0"
           >
@@ -186,7 +182,7 @@ export const Navbar: React.FC<Props> = ({
             </div>
             <div className="leading-tight">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm sm:text-base font-bold tracking-tight text-[#F7EEDB]">MarKtXPO</span>
+                <span className="text-sm sm:text-base font-bold tracking-tight text-[#F7EEDB]">MarKTXPO</span>
               </div>
               <p className="text-[10px] text-[#8CB4E0]/80 hidden sm:block">Indian Equities Terminal</p>
             </div>
@@ -289,7 +285,7 @@ export const Navbar: React.FC<Props> = ({
         {/* Right Tools: PWA Install, Workspace, Alerts, Profile */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* PWA Install Button */}
-          <PWAInstallButton compact />
+          { /* <PWAInstallButton compact /> */}
 
           {/* Language Switcher (Desktop & Tablet) */}
           <div className="relative group hidden md:block">

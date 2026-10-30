@@ -269,8 +269,7 @@ export const GmailModal: React.FC<GmailModalProps> = ({
             <div className="max-w-md space-y-2">
               <h3 className="text-xl font-bold text-white">Connect Your Gmail Account</h3>
               <p className="text-sm text-slate-400 leading-relaxed">
-                MarKtXPO connects directly with the Gmail API via Google Workspace OAuth to allow sending customized
-                market summaries and reading trade confirmation notes with your permission.
+               
               </p>
             </div>
 
@@ -309,7 +308,7 @@ export const GmailModal: React.FC<GmailModalProps> = ({
                     />
                   </svg>
                   <span className="text-sm font-semibold tracking-wide">
-                    {isLoadingAuth ? 'Connecting to Google Workspace...' : 'Sign in with Google to Connect Gmail'}
+                    {isLoadingAuth ? '.....' : 'Sign in with Google to Connect Gmail'}
                   </span>
                 </div>
               </button>
@@ -317,7 +316,7 @@ export const GmailModal: React.FC<GmailModalProps> = ({
 
             <div className="flex items-center space-x-2 text-xs text-slate-500">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Tokens cached securely in-memory only. Full user confirmation required for all sends.</span>
+              <span>.</span>
             </div>
           </div>
         ) : (
